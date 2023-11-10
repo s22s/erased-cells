@@ -1,0 +1,8 @@
+/target
+/.idea
+/.serverless
+/node_modules
+*.aux.xml
+.vscode
+*.DS_Store
+/.env
