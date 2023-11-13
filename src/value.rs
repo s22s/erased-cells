@@ -80,6 +80,10 @@ impl CellValue {
             return Err(err());
         }
 
+        if cell_type == self.cell_type() {
+            return Ok(*self);
+        }
+
         match cell_type {
             CellType::UInt8 => Ok(self.to_u8().ok_or_else(err)?.into_cell_value()),
             CellType::UInt16 => Ok(self.to_u16().ok_or_else(err)?.into_cell_value()),
@@ -106,7 +110,7 @@ impl CellValue {
 
 impl From<CellValue> for f64 {
     fn from(value: CellValue) -> Self {
-        value.to_f64().unwrap_or(f64::NAN)
+        value.to_f64().expect("f64 conversion")
     }
 }
 
@@ -174,7 +178,7 @@ pub(crate) mod ops {
                 type Output = CellValue;
                 fn $mth(self, rhs: Self) -> Self::Output {
                     let (lhs, rhs) = self.unify(&rhs);
-                    CellValue::new(lhs.to_f64().expect("f64 conversion") $op rhs.to_f64().expect("f64 conversion"))
+                    CellValue::new(<f64>::from(lhs) $op <f64>::from(rhs))
                 }
             }
         }
@@ -279,16 +283,23 @@ mod tests {
     }
 
     #[test]
+    fn convert() {
+        assert!(matches!(
+            CellValue::UInt8(43).convert(CellType::Int16),
+            Ok(CellValue::Int16(43))
+        ));
+        assert!(CellValue::Float32(3.14).convert(CellType::Int64).is_err())
+    }
+
+    #[test]
     #[allow(illegal_floating_point_literal_pattern)]
     fn unary() {
-        let l = CellValue::UInt8(1);
-        assert!(matches!(-l, CellValue::Int16(-1)));
-        let l = CellValue::UInt16(1);
-        assert!(matches!(-l, CellValue::Int32(-1)));
-        let l = CellValue::Float64(1.0);
-        assert!(matches!(-l, CellValue::Float64(-1.0)));
-        let l = CellValue::Float32(1.0);
-        assert!(matches!(-l, CellValue::Float32(-1.0)));
+        assert!(matches!(-CellValue::UInt8(1), CellValue::Int16(-1)));
+        assert!(matches!(-CellValue::UInt16(1), CellValue::Int32(-1)));
+        assert!(matches!(-CellValue::Int8(1), CellValue::Int8(-1)));
+        assert!(matches!(-CellValue::Int16(1), CellValue::Int16(-1)));
+        assert!(matches!(-CellValue::Float64(1.0), CellValue::Float64(-1.0)));
+        assert!(matches!(-CellValue::Float32(1.0), CellValue::Float32(-1.0)));
     }
 
     #[test]

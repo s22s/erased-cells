@@ -41,3 +41,13 @@ macro_rules! encoding {
 }
 
 with_ct!(encoding);
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn casting() {
+        assert!(<f64>::static_cast(34f64).is_some());
+        assert!(<f64>::static_cast(34f32).is_none());
+    }
+}

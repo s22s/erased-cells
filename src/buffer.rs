@@ -3,94 +3,81 @@
  */
 
 use crate::error::{Error, Result};
-use crate::{CellEncoding, CellType, CellValue};
+use crate::{with_ct, CellEncoding, CellType, CellValue};
 use serde::{Deserialize, Serialize};
 use std::fmt::{Debug, Formatter};
 
-#[derive(Clone, PartialEq, Serialize, Deserialize)]
-pub enum CellBuffer {
-    UInt8(Vec<u8>),
-    UInt16(Vec<u16>),
-    // Int16(Vec<i16>),
-    // Int32(Vec<i32>),
-    Float32(Vec<f32>),
-    Float64(Vec<f64>),
+/// CellBuffer enum constructor.
+macro_rules! cv_enum {
+    ( $(($id:ident, $p:ident)),*) => {
+        /// Buffer variants for each [`CellType`]
+        #[derive(Clone, Serialize, Deserialize)]
+        pub enum CellBuffer { $($id(Vec<$p>)),* }
+    }
 }
+with_ct!(cv_enum);
 
 impl CellBuffer {
     pub fn new<T: CellEncoding>(data: Vec<T>) -> Self {
         data.into()
     }
     pub fn empty(len: usize, ct: CellType) -> Self {
-        match ct {
-            CellType::UInt8 => Self::new(vec![u8::default(); len]),
-            CellType::UInt16 => Self::new(vec![u16::default(); len]),
-            CellType::Float32 => Self::new(vec![f32::default(); len]),
-            CellType::Float64 => Self::new(vec![f64::default(); len]),
-            _ => todo!(),
+        macro_rules! empty {
+            ( $(($id:ident, $p:ident)),*) => {
+                match ct {
+                    $(CellType::$id => Self::new(vec![$p::default(); len]),)*
+                }
+            };
         }
+        with_ct!(empty)
     }
 
     pub fn len(&self) -> usize {
-        match self {
-            CellBuffer::UInt8(v) => v.len(),
-            CellBuffer::UInt16(v) => v.len(),
-            CellBuffer::Float32(v) => v.len(),
-            CellBuffer::Float64(v) => v.len(),
+        macro_rules! len {
+            ( $(($id:ident, $_p:ident)),*) => {
+                match self {
+                    $(CellBuffer::$id(v) => v.len(),)*
+                }
+            };
         }
+        with_ct!(len)
     }
 
     pub fn cell_type(&self) -> CellType {
-        match self {
-            CellBuffer::UInt8(_) => CellType::UInt8,
-            CellBuffer::UInt16(_) => CellType::UInt16,
-            CellBuffer::Float32(_) => CellType::Float32,
-            CellBuffer::Float64(_) => CellType::Float64,
+        macro_rules! ct {
+            ( $(($id:ident, $_p:ident)),*) => {
+                match self {
+                    $(CellBuffer::$id(_) => CellType::$id,)*
+                }
+            };
         }
+        with_ct!(ct)
     }
 
     /// Panics of `idx` is outside of `[0, len())`.
     pub fn get(&self, idx: usize) -> CellValue {
-        match self {
-            CellBuffer::UInt8(b) => CellValue::UInt8(b[idx]),
-            CellBuffer::UInt16(b) => CellValue::UInt16(b[idx]),
-            CellBuffer::Float32(b) => CellValue::Float32(b[idx]),
-            CellBuffer::Float64(b) => CellValue::Float64(b[idx]),
+        macro_rules! get {
+            ( $(($id:ident, $_p:ident)),*) => {
+                match self {
+                    $(CellBuffer::$id(b) => CellValue::$id(b[idx]),)*
+                }
+            };
         }
+        with_ct!(get)
     }
 
     pub fn put(&mut self, idx: usize, value: CellValue) -> Result<()> {
         let value = value.convert(self.cell_type())?;
-        match self {
-            CellBuffer::UInt8(b) => match value {
-                CellValue::UInt8(v) => b[idx] = v,
-                _ => unreachable!(),
-            },
-            CellBuffer::UInt16(b) => match value {
-                CellValue::UInt16(v) => b[idx] = v,
-                _ => unreachable!(),
-            },
-            CellBuffer::Float32(b) => match value {
-                CellValue::Float32(v) => b[idx] = v,
-                _ => unreachable!(),
-            },
-            CellBuffer::Float64(b) => match value {
-                CellValue::Float64(v) => b[idx] = v,
-                _ => unreachable!(),
-            },
+        macro_rules! put {
+            ( $(($id:ident, $_p:ident)),*) => {
+                match (self, value) {
+                    $((CellBuffer::$id(b), CellValue::$id(v)) => b[idx] = v,)*
+                    _ => unreachable!(),
+                }
+            }
         }
-
+        with_ct!(put);
         Ok(())
-    }
-
-    pub fn iter(&self) -> Box<dyn Iterator<Item = CellValue> + '_> {
-        // TODO: get rid of clone!
-        match self {
-            Self::UInt8(v) => Box::new(v.iter().map(|v| (*v).into())),
-            Self::UInt16(v) => Box::new(v.iter().map(|v| (*v).into())),
-            Self::Float32(v) => Box::new(v.iter().map(|v| (*v).into())),
-            Self::Float64(v) => Box::new(v.iter().map(|v| (*v).into())),
-        }
     }
 
     pub fn convert(&self, cell_type: CellType) -> Result<Self> {
@@ -124,24 +111,26 @@ impl CellBuffer {
                 CellType::Float64 => Ok(self.clone()),
                 _ => todo!(),
             },
+            _ => todo!(),
         }
     }
 
     pub fn minmax(&self) -> (CellValue, CellValue) {
         let init = (self.cell_type().max(), self.cell_type().min());
-        self.iter()
+        self.into_iter()
             .fold(init, |(amin, amax), v| (amin.min(v), amax.max(v)))
     }
 
     pub fn to_vec<T: CellEncoding>(&self) -> Result<Vec<T>> {
         let r = self.convert(T::cell_type())?;
-
-        match r {
-            CellBuffer::UInt8(b) => Ok(danger::cast(b)),
-            CellBuffer::UInt16(b) => Ok(danger::cast(b)),
-            CellBuffer::Float32(b) => Ok(danger::cast(b)),
-            CellBuffer::Float64(b) => Ok(danger::cast(b)),
+        macro_rules! to_vec {
+            ( $(($id:ident, $_p:ident)),*) => {
+                match r {
+                    $(CellBuffer::$id(b) => Ok(danger::cast(b)),)*
+                }
+            }
         }
+        with_ct!(to_vec)
     }
 }
 
@@ -153,25 +142,27 @@ impl From<&CellBuffer> for CellType {
 
 impl<T: CellEncoding> From<Vec<T>> for CellBuffer {
     fn from(values: Vec<T>) -> Self {
-        match T::cell_type() {
-            CellType::UInt8 => Self::UInt8(danger::cast(values)),
-            CellType::UInt16 => Self::UInt16(danger::cast(values)),
-            CellType::Float32 => Self::Float32(danger::cast(values)),
-            CellType::Float64 => Self::Float64(danger::cast(values)),
-            _ => todo!(),
+        macro_rules! from {
+            ( $(($id:ident, $_p:ident)),*) => {
+                match T::cell_type() {
+                    $(CellType::$id => Self::$id(danger::cast(values)),)*
+                }
+            }
         }
+        with_ct!(from)
     }
 }
 
 impl<T: CellEncoding> From<&[T]> for CellBuffer {
     fn from(values: &[T]) -> Self {
-        match T::cell_type() {
-            CellType::UInt8 => Self::UInt8(danger::cast(values.to_vec())),
-            CellType::UInt16 => Self::UInt16(danger::cast(values.to_vec())),
-            CellType::Float32 => Self::Float32(danger::cast(values.to_vec())),
-            CellType::Float64 => Self::Float64(danger::cast(values.to_vec())),
-            _ => todo!(),
+        macro_rules! from {
+            ( $(($id:ident, $_p:ident)),*) => {
+                match T::cell_type() {
+                    $(CellType::$id => Self::$id(danger::cast(values.to_vec())),)*
+                }
+            }
         }
+        with_ct!(from)
     }
 }
 
@@ -200,49 +191,74 @@ impl Debug for CellBuffer {
                     .join(", ")
             }
         }
+        macro_rules! render {
+            ( $(($id:ident, $_p:ident)),*) => {
+                match self {
+                    $(CellBuffer::$id(b) => render_values(b),)*
+                }
+            }
+        }
 
-        let values = match self {
-            CellBuffer::UInt8(b) => render_values(b),
-            CellBuffer::UInt16(b) => render_values(b),
-            CellBuffer::Float32(b) => render_values(b),
-            CellBuffer::Float64(b) => render_values(b),
-        };
+        let values = with_ct!(render);
         f.debug_struct(&format!("{basename}CellBuffer"))
             .field("values", &values)
             .finish()
     }
 }
 
-impl FromIterator<f64> for CellBuffer {
-    fn from_iter<T: IntoIterator<Item = f64>>(iter: T) -> Self {
-        Self::Float64(iter.into_iter().collect())
+impl<C: CellEncoding> FromIterator<C> for CellBuffer {
+    fn from_iter<T: IntoIterator<Item = C>>(iter: T) -> Self {
+        Self::new(iter.into_iter().collect())
     }
 }
 
 impl FromIterator<CellValue> for CellBuffer {
     fn from_iter<T: IntoIterator<Item = CellValue>>(iterable: T) -> Self {
+        // TODO: is there a way to avoid this collect?
         let values = iterable.into_iter().collect::<Vec<CellValue>>();
-
         match values.as_slice() {
             [] => CellBuffer::UInt8(Vec::new()),
             [x, ..] => {
                 let ct: CellType = x.cell_type();
-                match ct {
-                    CellType::UInt8 => {
-                        CellBuffer::UInt8(values.iter().map(|v| v.get().unwrap()).collect())
+                macro_rules! conv {
+                    ( $(($id:ident, $_p:ident)),*) => {
+                        match ct {
+                            $(CellType::$id => {
+                                CellBuffer::$id(values.iter().map(|v| v.get().unwrap()).collect())
+                            })*
+                        }
                     }
-                    CellType::UInt16 => {
-                        CellBuffer::UInt16(values.iter().map(|v| v.get().unwrap()).collect())
-                    }
-                    CellType::Float32 => {
-                        CellBuffer::Float32(values.iter().map(|v| v.get().unwrap()).collect())
-                    }
-                    CellType::Float64 => {
-                        CellBuffer::Float64(values.iter().map(|v| v.get().unwrap()).collect())
-                    }
-                    _ => todo!(),
                 }
+                with_ct!(conv)
             }
+        }
+    }
+}
+
+impl<'buf> IntoIterator for &'buf CellBuffer {
+    type Item = CellValue;
+    type IntoIter = CellBufferIterator<'buf>;
+    fn into_iter(self) -> Self::IntoIter {
+        CellBufferIterator { buf: self, idx: 0, len: self.len() }
+    }
+}
+
+pub struct CellBufferIterator<'buf> {
+    buf: &'buf CellBuffer,
+    idx: usize,
+    len: usize,
+}
+
+impl Iterator for CellBufferIterator<'_> {
+    type Item = CellValue;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.idx >= self.len {
+            None
+        } else {
+            let r = self.buf.get(self.idx);
+            self.idx += 1;
+            Some(r)
         }
     }
 }
@@ -256,7 +272,7 @@ pub(crate) mod ops {
             impl $trt for &CellBuffer {
                 type Output = CellBuffer;
                 fn $mth(self, rhs: Self) -> Self::Output {
-                    self.iter().zip(rhs.iter()).map(|(l, r)| l $op r).collect()
+                    self.into_iter().zip(rhs.into_iter()).map(|(l, r)| l $op r).collect()
                 }
             }
         }
@@ -269,7 +285,7 @@ pub(crate) mod ops {
     impl Neg for &CellBuffer {
         type Output = CellBuffer;
         fn neg(self) -> Self::Output {
-            self.iter().map(|v| -v).collect()
+            self.into_iter().into_iter().map(|v| -v).collect()
         }
     }
 }
@@ -290,7 +306,7 @@ mod danger {
 
 #[cfg(test)]
 mod tests {
-    use crate::{CellBuffer, CellValue};
+    use crate::{CellBuffer, CellType, CellValue};
 
     #[test]
     fn minmax() {
@@ -303,5 +319,25 @@ mod tests {
         let (min, max) = buf.minmax();
         assert_eq!(min, CellValue::UInt8(0));
         assert_eq!(max, CellValue::UInt8(200));
+    }
+
+    #[test]
+    fn from_iter() {
+        let v = vec![
+            CellValue::UInt16(3),
+            CellValue::UInt16(4),
+            CellValue::UInt16(5),
+        ];
+
+        let b: CellBuffer = v.into_iter().collect();
+        assert_eq!(b.cell_type(), CellType::UInt16);
+        assert_eq!(b.len(), 3);
+        assert_eq!(b.get(2), CellValue::UInt16(5));
+
+        let v = vec![33.3f32, 44.4, 55.5];
+        let b: CellBuffer = v.into_iter().collect();
+        assert_eq!(b.cell_type(), CellType::Float32);
+        assert_eq!(b.len(), 3);
+        assert_eq!(b.get(2), CellValue::Float32(55.5));
     }
 }
