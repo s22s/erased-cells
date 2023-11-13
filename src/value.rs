@@ -5,35 +5,39 @@
 use num_traits::ToPrimitive;
 use serde::{Deserialize, Serialize};
 
+use crate::ctype::with_ct;
 use crate::{
     error::{Error, Result},
     CellEncoding, CellType,
 };
 
-#[derive(Debug, Copy, Clone, Serialize, Deserialize)]
-pub enum CellValue {
-    UInt8(u8),
-    UInt16(u16),
-    // Int16(i16),
-    // Int32(i32),
-    Float32(f32),
-    Float64(f64),
+macro_rules! cv_enum {
+    ( $(($id:ident, $p:ident)),*) => {
+        #[derive(Debug, Copy, Clone, Serialize, Deserialize)]
+        pub enum CellValue { $($id($p)),* }
+    }
 }
+with_ct!(cv_enum);
 
 impl CellValue {
+    /// Get the [`CellType`] encoding `self`.
     pub fn cell_type(&self) -> CellType {
-        match self {
-            CellValue::UInt8(_) => CellType::UInt8,
-            CellValue::UInt16(_) => CellType::UInt16,
-            CellValue::Float32(_) => CellType::Float32,
-            CellValue::Float64(_) => CellType::Float64,
+        macro_rules! cv_ct {
+            ($( ($id:ident, $_p:ident) ),*) => {
+                match self {
+                    $(CellValue::$id(_) => CellType::$id),*
+                }
+            };
         }
+        with_ct!(cv_ct)
     }
+
     pub fn get<T: CellEncoding>(&self) -> Result<T> {
         let err = || Error::NarrowingError {
             src: self.cell_type(),
             dst: T::cell_type(),
         };
+
         match T::cell_type() {
             CellType::UInt8 => match self {
                 CellValue::UInt8(v) => T::cast(*v).ok_or_else(err),
@@ -51,6 +55,7 @@ impl CellValue {
                 CellValue::Float64(v) => T::cast(*v).ok_or_else(err),
                 _ => Err(err()),
             },
+            _ => todo!(),
         }
     }
 
@@ -63,25 +68,30 @@ impl CellValue {
                 CellType::UInt16 => Ok(Self::UInt16(*v as u16)),
                 CellType::Float32 => Ok(Self::Float32(*v as f32)),
                 CellType::Float64 => Ok(Self::Float64(*v as f64)),
+                _ => todo!(),
             },
             Self::UInt16(v) => match cell_type {
                 CellType::UInt8 => err(),
                 CellType::UInt16 => Ok(self.clone()),
                 CellType::Float32 => Ok(Self::Float32(*v as f32)),
                 CellType::Float64 => Ok(Self::Float64(*v as f64)),
+                _ => todo!(),
             },
             Self::Float32(v) => match cell_type {
                 CellType::UInt8 => err(),
                 CellType::UInt16 => err(),
                 CellType::Float32 => Ok(self.clone()),
                 CellType::Float64 => Ok(Self::Float64(*v as f64)),
+                _ => todo!(),
             },
             Self::Float64(_) => match cell_type {
                 CellType::UInt8 => err(),
                 CellType::UInt16 => err(),
                 CellType::Float32 => err(),
                 CellType::Float64 => Ok(self.clone()),
+                _ => todo!(),
             },
+            _ => todo!(),
         }
     }
 
@@ -114,6 +124,7 @@ impl ToPrimitive for CellValue {
             CellValue::UInt16(v) => v.to_i64(),
             CellValue::Float32(v) => v.to_i64(),
             CellValue::Float64(v) => v.to_i64(),
+            _ => todo!(),
         }
     }
 
@@ -123,6 +134,7 @@ impl ToPrimitive for CellValue {
             CellValue::UInt16(v) => v.to_u64(),
             CellValue::Float32(v) => v.to_u64(),
             CellValue::Float64(v) => v.to_u64(),
+            _ => todo!(),
         }
     }
 
@@ -132,6 +144,7 @@ impl ToPrimitive for CellValue {
             CellValue::UInt16(v) => v.to_f64(),
             CellValue::Float32(v) => v.to_f64(),
             CellValue::Float64(v) => Some(*v),
+            _ => todo!(),
         }
     }
 }
@@ -178,6 +191,7 @@ pub(crate) mod ops {
                 CellValue::UInt16(v) => CellValue::Float64(-(v as f64)),
                 CellValue::Float32(v) => CellValue::Float32(-v),
                 CellValue::Float64(v) => CellValue::Float64(-v),
+                _ => todo!(),
             }
         }
     }
@@ -222,7 +236,19 @@ pub(crate) mod ops {
 
 #[cfg(test)]
 mod tests {
-    use crate::CellValue;
+    use crate::ctype::with_ct;
+    use crate::{CellType, CellValue};
+
+    #[test]
+    fn cell_type() {
+        // Confirm CellValue::cell_type is correct.
+        macro_rules! test {
+            ($( ($id:ident, $p:ident) ),*) => {
+                $(assert_eq!(CellValue::$id($p::default()).cell_type(), CellType::$id);)*
+            };
+        }
+        with_ct!(test);
+    }
 
     #[test]
     fn unary() {

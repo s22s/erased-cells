@@ -3,7 +3,7 @@
  */
 
 use crate::error::{Error, Result};
-use crate::{CellEncoding, CellType, CellValue, HasCellType};
+use crate::{CellEncoding, CellType, CellValue};
 use serde::{Deserialize, Serialize};
 use std::fmt::{Debug, Formatter};
 
@@ -27,6 +27,7 @@ impl CellBuffer {
             CellType::UInt16 => Self::new(vec![u16::default(); len]),
             CellType::Float32 => Self::new(vec![f32::default(); len]),
             CellType::Float64 => Self::new(vec![f64::default(); len]),
+            _ => todo!(),
         }
     }
 
@@ -100,24 +101,28 @@ impl CellBuffer {
                 CellType::UInt16 => Ok(Self::UInt16(b.into_iter().map(|&x| x as u16).collect())),
                 CellType::Float32 => Ok(Self::Float32(b.into_iter().map(|&x| x as f32).collect())),
                 CellType::Float64 => Ok(Self::Float64(b.into_iter().map(|&x| x as f64).collect())),
+                _ => todo!(),
             },
             Self::UInt16(b) => match cell_type {
                 CellType::UInt8 => err(),
                 CellType::UInt16 => Ok(self.clone()),
                 CellType::Float32 => Ok(Self::Float32(b.into_iter().map(|&x| x as f32).collect())),
                 CellType::Float64 => Ok(Self::Float64(b.into_iter().map(|&x| x as f64).collect())),
+                _ => todo!(),
             },
             Self::Float32(b) => match cell_type {
                 CellType::UInt8 => err(),
                 CellType::UInt16 => err(),
                 CellType::Float32 => Ok(self.clone()),
                 CellType::Float64 => Ok(Self::Float64(b.into_iter().map(|&x| x as f64).collect())),
+                _ => todo!(),
             },
             Self::Float64(_) => match cell_type {
                 CellType::UInt8 => err(),
                 CellType::UInt16 => err(),
                 CellType::Float32 => err(),
                 CellType::Float64 => Ok(self.clone()),
+                _ => todo!(),
             },
         }
     }
@@ -140,12 +145,6 @@ impl CellBuffer {
     }
 }
 
-impl HasCellType for CellBuffer {
-    fn cell_type(&self) -> CellType {
-        self.cell_type()
-    }
-}
-
 impl From<&CellBuffer> for CellType {
     fn from(value: &CellBuffer) -> Self {
         value.cell_type()
@@ -159,6 +158,7 @@ impl<T: CellEncoding> From<Vec<T>> for CellBuffer {
             CellType::UInt16 => Self::UInt16(danger::cast(values)),
             CellType::Float32 => Self::Float32(danger::cast(values)),
             CellType::Float64 => Self::Float64(danger::cast(values)),
+            _ => todo!(),
         }
     }
 }
@@ -170,6 +170,7 @@ impl<T: CellEncoding> From<&[T]> for CellBuffer {
             CellType::UInt16 => Self::UInt16(danger::cast(values.to_vec())),
             CellType::Float32 => Self::Float32(danger::cast(values.to_vec())),
             CellType::Float64 => Self::Float64(danger::cast(values.to_vec())),
+            _ => todo!(),
         }
     }
 }
@@ -239,6 +240,7 @@ impl FromIterator<CellValue> for CellBuffer {
                     CellType::Float64 => {
                         CellBuffer::Float64(values.iter().map(|v| v.get().unwrap()).collect())
                     }
+                    _ => todo!(),
                 }
             }
         }

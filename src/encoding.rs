@@ -27,8 +27,9 @@ pub trait CellEncoding: Copy + Debug + Default {
     }
 }
 
+/// Implements [`CellEncoding`] for each cell type.
 macro_rules! encoding {
-    ( $prim:tt, $ct:ident ) => {
+    ( $( ($ct:ident, $prim:ident) ),* ) => { $(
         impl CellEncoding for $prim {
             type Encoding = $prim;
             fn cell_type() -> CellType {
@@ -37,13 +38,8 @@ macro_rules! encoding {
             fn into_cell_value(self) -> CellValue {
                 CellValue::$ct(self)
             }
-        }
+        } )*
     };
 }
 
-encoding!(u8, UInt8);
-encoding!(u16, UInt16);
-// encoding!(i16, Int16);
-// encoding!(i32, Int32);
-encoding!(f32, Float32);
-encoding!(f64, Float64);
+with_ct!(encoding);
