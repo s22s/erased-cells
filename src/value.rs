@@ -5,14 +5,16 @@
 use num_traits::ToPrimitive;
 use serde::{Deserialize, Serialize};
 
-use crate::ctype::with_ct;
+use crate::with_ct;
 use crate::{
     error::{Error, Result},
     CellEncoding, CellType,
 };
 
+/// CellValue enum constructor.
 macro_rules! cv_enum {
     ( $(($id:ident, $p:ident)),*) => {
+        /// Value variants for each [`CellType`]
         #[derive(Debug, Copy, Clone, Serialize, Deserialize)]
         pub enum CellValue { $($id($p)),* }
     }
@@ -20,6 +22,17 @@ macro_rules! cv_enum {
 with_ct!(cv_enum);
 
 impl CellValue {
+    pub fn new<T: CellEncoding + Sized>(value: T) -> Self {
+        macro_rules! ctor {
+            ( $( ($id:ident, $p:ident) ),*) => {
+                match T::cell_type() {
+                    $(CellType::$id => CellValue::$id($p::static_cast(value).unwrap()),)*
+                }
+            };
+        }
+        with_ct!(ctor)
+    }
+
     /// Get the [`CellType`] encoding `self`.
     pub fn cell_type(&self) -> CellType {
         macro_rules! cv_ct {
@@ -32,66 +45,52 @@ impl CellValue {
         with_ct!(cv_ct)
     }
 
+    /// Get the [`CellValue`] contents as a `T`.
+    ///
+    /// Returns `Ok(T)` if the [`CellType`] of `T` is the same or wider than
+    /// the encoded value, or `Err(Error)` if `T` is narrower.
     pub fn get<T: CellEncoding>(&self) -> Result<T> {
         let err = || Error::NarrowingError {
             src: self.cell_type(),
             dst: T::cell_type(),
         };
-
-        match T::cell_type() {
-            CellType::UInt8 => match self {
-                CellValue::UInt8(v) => T::cast(*v).ok_or_else(err),
-                _ => Err(err()),
-            },
-            CellType::UInt16 => match self {
-                CellValue::UInt16(v) => T::cast(*v).ok_or_else(err),
-                _ => Err(err()),
-            },
-            CellType::Float32 => match self {
-                CellValue::Float32(v) => T::cast(*v).ok_or_else(err),
-                _ => Err(err()),
-            },
-            CellType::Float64 => match self {
-                CellValue::Float64(v) => T::cast(*v).ok_or_else(err),
-                _ => Err(err()),
-            },
-            _ => todo!(),
+        let conv = self.convert(T::cell_type())?;
+        macro_rules! conv {
+             ($( ($id:ident, $_p:ident) ),*) => {
+                match conv {
+                    $(
+                    CellValue::$id(v) => T::static_cast(v).ok_or_else(err),
+                    )*
+                }
+            };
         }
+
+        with_ct!(conv)
     }
 
+    /// Convert `self` into a variant with [`CellType`] `cell_type` equal to or wider than
+    /// its current `CellType`.
+    ///
+    /// Returns `Ok(CellValue)` if the [`CellType`] of `cell_type` is the same or wider than
+    /// the encoded value, or `Err(Error)` if `T` is narrower.
     pub fn convert(&self, cell_type: CellType) -> Result<Self> {
         // TODO: Do something more like `GDALAdjustValueToDataType`
-        let err = || Err(Error::NarrowingError { src: self.cell_type(), dst: cell_type });
-        match self {
-            Self::UInt8(v) => match cell_type {
-                CellType::UInt8 => Ok(self.clone()),
-                CellType::UInt16 => Ok(Self::UInt16(*v as u16)),
-                CellType::Float32 => Ok(Self::Float32(*v as f32)),
-                CellType::Float64 => Ok(Self::Float64(*v as f64)),
-                _ => todo!(),
-            },
-            Self::UInt16(v) => match cell_type {
-                CellType::UInt8 => err(),
-                CellType::UInt16 => Ok(self.clone()),
-                CellType::Float32 => Ok(Self::Float32(*v as f32)),
-                CellType::Float64 => Ok(Self::Float64(*v as f64)),
-                _ => todo!(),
-            },
-            Self::Float32(v) => match cell_type {
-                CellType::UInt8 => err(),
-                CellType::UInt16 => err(),
-                CellType::Float32 => Ok(self.clone()),
-                CellType::Float64 => Ok(Self::Float64(*v as f64)),
-                _ => todo!(),
-            },
-            Self::Float64(_) => match cell_type {
-                CellType::UInt8 => err(),
-                CellType::UInt16 => err(),
-                CellType::Float32 => err(),
-                CellType::Float64 => Ok(self.clone()),
-                _ => todo!(),
-            },
-            _ => todo!(),
+        let err = || Error::NarrowingError { src: self.cell_type(), dst: cell_type };
+        if self.cell_type().union(cell_type) != cell_type {
+            return Err(err());
+        }
+
+        match cell_type {
+            CellType::UInt8 => Ok(self.to_u8().ok_or_else(err)?.into_cell_value()),
+            CellType::UInt16 => Ok(self.to_u16().ok_or_else(err)?.into_cell_value()),
+            CellType::UInt32 => Ok(self.to_u32().ok_or_else(err)?.into_cell_value()),
+            CellType::UInt64 => Ok(self.to_u64().ok_or_else(err)?.into_cell_value()),
+            CellType::Int8 => Ok(self.to_i8().ok_or_else(err)?.into_cell_value()),
+            CellType::Int16 => Ok(self.to_i16().ok_or_else(err)?.into_cell_value()),
+            CellType::Int32 => Ok(self.to_i32().ok_or_else(err)?.into_cell_value()),
+            CellType::Int64 => Ok(self.to_i64().ok_or_else(err)?.into_cell_value()),
+            CellType::Float32 => Ok(self.to_f32().ok_or_else(err)?.into_cell_value()),
+            CellType::Float64 => Ok(self.to_f64().ok_or_else(err)?.into_cell_value()),
         }
     }
 
@@ -119,33 +118,42 @@ impl<T: CellEncoding> From<T> for CellValue {
 
 impl ToPrimitive for CellValue {
     fn to_i64(&self) -> Option<i64> {
-        match self {
-            CellValue::UInt8(v) => v.to_i64(),
-            CellValue::UInt16(v) => v.to_i64(),
-            CellValue::Float32(v) => v.to_i64(),
-            CellValue::Float64(v) => v.to_i64(),
-            _ => todo!(),
+        macro_rules! conv {
+            ($( ($id:ident, $_p:ident) ),*) => {
+                match self {
+                    $(
+                    CellValue::$id(v) => v.to_i64(),
+                    )*
+                }
+            }
         }
+        with_ct!(conv)
     }
 
     fn to_u64(&self) -> Option<u64> {
-        match self {
-            CellValue::UInt8(v) => v.to_u64(),
-            CellValue::UInt16(v) => v.to_u64(),
-            CellValue::Float32(v) => v.to_u64(),
-            CellValue::Float64(v) => v.to_u64(),
-            _ => todo!(),
+        macro_rules! conv {
+            ($( ($id:ident, $_p:ident) ),*) => {
+                match self {
+                    $(
+                    CellValue::$id(v) => v.to_u64(),
+                    )*
+                }
+            }
         }
+        with_ct!(conv)
     }
 
     fn to_f64(&self) -> Option<f64> {
-        match self {
-            CellValue::UInt8(v) => v.to_f64(),
-            CellValue::UInt16(v) => v.to_f64(),
-            CellValue::Float32(v) => v.to_f64(),
-            CellValue::Float64(v) => Some(*v),
-            _ => todo!(),
+        macro_rules! conv {
+            ($( ($id:ident, $_p:ident) ),*) => {
+                match self {
+                    $(
+                    CellValue::$id(v) => v.to_f64(),
+                    )*
+                }
+            }
         }
+        with_ct!(conv)
     }
 }
 
@@ -157,7 +165,7 @@ pub(crate) mod ops {
 
     use num_traits::ToPrimitive;
 
-    use crate::CellValue;
+    use crate::{with_ct, CellValue};
 
     // NOTE: We currently take the position that any math ops will promote all integral primitives to f64 first
     macro_rules! cv_bin_op {
@@ -165,13 +173,8 @@ pub(crate) mod ops {
             impl $trt for CellValue {
                 type Output = CellValue;
                 fn $mth(self, rhs: Self) -> Self::Output {
-                    match self.unify(&rhs) {
-                        (CellValue::UInt8(l), CellValue::UInt8(r)) => CellValue::Float64((l as f64) $op (r as f64)),
-                        (CellValue::UInt16(l), CellValue::UInt16(r)) => CellValue::Float64((l as f64) $op (r as f64)),
-                        (CellValue::Float32(l), CellValue::Float32(r)) => CellValue::Float32(l $op r),
-                        (CellValue::Float64(l), CellValue::Float64(r)) => CellValue::Float64(l $op r),
-                        o => unimplemented!("{o:?}"),
-                    }
+                    let (lhs, rhs) = self.unify(&rhs);
+                    CellValue::new(lhs.to_f64().expect("f64 conversion") $op rhs.to_f64().expect("f64 conversion"))
                 }
             }
         }
@@ -186,12 +189,16 @@ pub(crate) mod ops {
         type Output = CellValue;
         fn neg(self) -> Self::Output {
             match self {
-                // TODO: once we have signed types we should widen to the closer type
-                CellValue::UInt8(v) => CellValue::Float64(-(v as f64)),
-                CellValue::UInt16(v) => CellValue::Float64(-(v as f64)),
-                CellValue::Float32(v) => CellValue::Float32(-v),
-                CellValue::Float64(v) => CellValue::Float64(-v),
-                _ => todo!(),
+                CellValue::UInt8(v) => CellValue::new(-(v as i16)),
+                CellValue::UInt16(v) => CellValue::new(-(v as i32)),
+                CellValue::UInt32(v) => CellValue::new(-(v as i64)),
+                CellValue::UInt64(v) => CellValue::new(-(v as f64)),
+                CellValue::Int8(v) => CellValue::new(-v),
+                CellValue::Int16(v) => CellValue::new(-v),
+                CellValue::Int32(v) => CellValue::new(-v),
+                CellValue::Int64(v) => CellValue::new(-v),
+                CellValue::Float32(v) => CellValue::new(-v),
+                CellValue::Float64(v) => CellValue::new(-v),
             }
         }
     }
@@ -199,14 +206,15 @@ pub(crate) mod ops {
     impl PartialOrd for CellValue {
         fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
             let (lhs, rhs) = self.unify(other);
-
-            match (lhs, rhs) {
-                (CellValue::UInt8(l), CellValue::UInt8(r)) => l.partial_cmp(&r),
-                (CellValue::UInt16(l), CellValue::UInt16(r)) => l.partial_cmp(&r),
-                (CellValue::Float32(l), CellValue::Float32(r)) => l.partial_cmp(&r),
-                (CellValue::Float64(l), CellValue::Float64(r)) => l.partial_cmp(&r),
-                _ => unreachable!(),
+            macro_rules! ord {
+                ($( ($id:ident, $_p:ident) ),*) => {
+                    match (lhs, rhs) {
+                        $((CellValue::$id(l), CellValue::$id(r)) => l.partial_cmp(&r),)*
+                        _ => unreachable!("{self:?} <> {other:?}"),
+                    }
+                };
             }
+            with_ct!(ord)
         }
     }
 
@@ -220,14 +228,15 @@ pub(crate) mod ops {
     impl PartialEq<Self> for CellValue {
         fn eq(&self, other: &Self) -> bool {
             let (lhs, rhs) = self.unify(other);
-
-            match (lhs, rhs) {
-                (CellValue::UInt8(l), CellValue::UInt8(r)) => l.eq(&r),
-                (CellValue::UInt16(l), CellValue::UInt16(r)) => l.eq(&r),
-                (CellValue::Float32(l), CellValue::Float32(r)) => l.eq(&r),
-                (CellValue::Float64(l), CellValue::Float64(r)) => l.eq(&r),
-                _ => unreachable!(),
+            macro_rules! cmp {
+                ($( ($id:ident, $_p:ident) ),*) => {
+                    match (lhs, rhs) {
+                        $((CellValue::$id(l), CellValue::$id(r)) => l.eq(&r),)*
+                        _ => unreachable!("{self:?} <> {other:?}"),
+                    }
+                };
             }
+            with_ct!(cmp)
         }
     }
 
@@ -236,7 +245,7 @@ pub(crate) mod ops {
 
 #[cfg(test)]
 mod tests {
-    use crate::ctype::with_ct;
+    use crate::with_ct;
     use crate::{CellType, CellValue};
 
     #[test]
@@ -251,15 +260,35 @@ mod tests {
     }
 
     #[test]
+    fn get() {
+        macro_rules! test {
+            ($( ($id:ident, $p:ident) ),*) => {
+                $({
+                    let v = $p::default();
+                    let cv = CellValue::new(v);
+                    let r = cv.get::<$p>();
+                    assert!(r.is_ok());
+                    assert_eq!(r.unwrap(), v);
+                    let r2 = cv.get::<f64>();
+                    assert!(r2.is_ok(), "{:?}", cv);
+                    assert_eq!(r2.unwrap(), v as f64)
+                })*
+            }
+        }
+        with_ct!(test);
+    }
+
+    #[test]
+    #[allow(illegal_floating_point_literal_pattern)]
     fn unary() {
         let l = CellValue::UInt8(1);
-        assert_eq!(-l, CellValue::Float64(-1.0));
+        assert!(matches!(-l, CellValue::Int16(-1)));
         let l = CellValue::UInt16(1);
-        assert_eq!(-l, CellValue::Float64(-1.0));
+        assert!(matches!(-l, CellValue::Int32(-1)));
         let l = CellValue::Float64(1.0);
-        assert_eq!(-l, CellValue::Float64(-1.0));
+        assert!(matches!(-l, CellValue::Float64(-1.0)));
         let l = CellValue::Float32(1.0);
-        assert_eq!(-l, CellValue::Float32(-1.0));
+        assert!(matches!(-l, CellValue::Float32(-1.0)));
     }
 
     #[test]

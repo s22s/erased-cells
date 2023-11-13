@@ -10,15 +10,14 @@ use std::fmt::Debug;
 /// For example, [`f64`] is [`CellEncoding`] through [`CellType::Float64`],
 /// but [`isize`] is not `CellEncoding`.
 pub trait CellEncoding: Copy + Debug + Default {
-    type Encoding: CellEncoding;
     /// Returns the [`CellType`] covering `Self`.
     fn cell_type() -> CellType;
     /// Converts `self` into a [`CellValue`].
     fn into_cell_value(self) -> CellValue;
     /// Convert dynamic type to static type when logically known.
-    /// Returns `None` if given value isn't actually the exact same
-    /// type as encoding.,
-    fn cast<T: CellEncoding + Sized>(value: T) -> Option<Self> {
+    /// Returns `None` if given value isn't actually the <u>exact</u> same
+    /// type as encoding.
+    fn static_cast<T: CellEncoding + Sized>(value: T) -> Option<Self> {
         if Self::cell_type() == T::cell_type() {
             Some(unsafe { std::mem::transmute_copy::<T, Self>(&value) })
         } else {
@@ -31,7 +30,6 @@ pub trait CellEncoding: Copy + Debug + Default {
 macro_rules! encoding {
     ( $( ($ct:ident, $prim:ident) ),* ) => { $(
         impl CellEncoding for $prim {
-            type Encoding = $prim;
             fn cell_type() -> CellType {
                 CellType::$ct
             }

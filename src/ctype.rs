@@ -3,43 +3,22 @@
  */
 
 use crate::error::Error;
-use crate::CellValue;
+use crate::{with_ct, CellValue};
 use serde::{Deserialize, Serialize};
 use std::fmt::{Debug, Display, Formatter};
+use std::mem;
 use std::str::FromStr;
 
-macro_rules! with_ct {
-    ($callback:ident) => {
-        $callback! {
-            (UInt8, u8),
-            (UInt16, u16),
-            (UInt32, u32),
-            (UInt64, u64),
-            (Int8, i8),
-            (Int16, i16),
-            (Int32, i32),
-            (Int64, i64),
-            (Float32, f32),
-            (Float64, f64)
-        }
-    };
+// CellType enum constructor.
+macro_rules! cv_enum {
+    ( $(($id:ident, $_p:ident)),*) => {
+        /// Cell-type variants
+        #[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize)]
+        #[repr(u8)]
+        pub enum CellType { $($id),* }
+    }
 }
-pub(crate) use with_ct;
-
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[repr(u8)]
-pub enum CellType {
-    UInt8,
-    UInt16,
-    UInt32,
-    UInt64,
-    Int8,
-    Int16,
-    Int32,
-    Int64,
-    Float32,
-    Float64,
-}
+with_ct!(cv_enum);
 
 /// `Display` is the same as `Debug`.
 impl Display for CellType {
@@ -74,6 +53,7 @@ impl CellType {
         with_ct!(ct_array).into_iter()
     }
 
+    /// Determine if `self` is integral or floating-point.
     pub fn is_integral(&self) -> bool {
         match self {
             CellType::UInt8 => true,
@@ -89,6 +69,7 @@ impl CellType {
         }
     }
 
+    /// Determine if `self` is signed or unsigned.
     pub fn is_signed(&self) -> bool {
         match self {
             CellType::UInt8 => false,
@@ -104,22 +85,48 @@ impl CellType {
         }
     }
 
+    /// Number of bytes needed to encode `self`.
+    pub fn size_of(&self) -> usize {
+        macro_rules! size_of {
+            ($( ($id:ident, $p:ident) ),* ) => {
+                match self {
+                    $(CellType::$id => mem::size_of::<$p>()),*
+                }
+            };
+        }
+        with_ct!(size_of)
+    }
+
     /// Select the `CellType` that can numerically contain both `self` and `other`.
     pub fn union(self, other: Self) -> Self {
-        // Want to do this, but am afraid it's fragile:
-        //     if (self as u8) > (other as u8) { self } else { other }
-        match self {
-            CellType::UInt8 => other,
-            CellType::UInt16 => match other {
-                CellType::UInt8 => self,
-                _ => other,
-            },
-            CellType::Float32 => match other {
-                CellType::Float64 => other,
-                _ => self,
-            },
-            CellType::Float64 => self,
-            _ => todo!(),
+        let min_bytes = {
+            match (self.is_integral(), other.is_integral()) {
+                (true, false) => other.size_of().max(2 * self.size_of()),
+                (false, true) => self.size_of().max(2 * other.size_of()),
+                _ => match (self.is_signed(), other.is_signed()) {
+                    (true, false) => self.size_of().max(2 * other.size_of()),
+                    (false, true) => other.size_of().max(2 * self.size_of()),
+                    _ => self.size_of().max(other.size_of()),
+                },
+            }
+        };
+        let signed = self.is_signed() || other.is_signed();
+        let integral = self.is_integral() && other.is_integral();
+        //dbg!(min_bytes, signed, integral);
+        match (min_bytes, signed, integral) {
+            (1, false, true) => Self::UInt8,
+            (1, true, true) => Self::Int8,
+            (2, false, true) => Self::UInt16,
+            (2, true, true) => Self::Int16,
+            (4, false, true) => Self::UInt32,
+            (4, true, true) => Self::Int32,
+            (4, _, false) => Self::Float32,
+            (8, false, true) => Self::UInt64,
+            (8, true, true) => Self::Int64,
+            (_, _, false) => Self::Float64,
+            _ => unreachable!(
+                "No union for {self} & {other}: bytes={min_bytes}, signed={signed}, integral={integral}"
+            ),
         }
     }
 
@@ -148,11 +155,12 @@ impl CellType {
 
 #[cfg(test)]
 mod tests {
-    use crate::CellType;
+    use crate::{with_ct, CellType};
     use std::str::FromStr;
 
     #[test]
     fn can_union() {
+        // reflexivity
         assert_eq!(CellType::UInt8.union(CellType::UInt8), CellType::UInt8);
         assert_eq!(CellType::UInt16.union(CellType::UInt16), CellType::UInt16);
         assert_eq!(
@@ -163,6 +171,13 @@ mod tests {
             CellType::Float64.union(CellType::Float64),
             CellType::Float64
         );
+
+        // symmetry
+        assert_eq!(CellType::Int16.union(CellType::Float32), CellType::Float32);
+        assert_eq!(CellType::Float32.union(CellType::Int16), CellType::Float32);
+        // widening
+        assert_eq!(CellType::UInt8.union(CellType::UInt16), CellType::UInt16);
+        assert_eq!(CellType::Int32.union(CellType::Float32), CellType::Float64);
     }
 
     #[test]
@@ -174,7 +189,22 @@ mod tests {
     }
 
     #[test]
+    fn size() {
+        assert_eq!(CellType::Int8.size_of(), 1);
+        assert_eq!(CellType::UInt8.size_of(), 1);
+        assert_eq!(CellType::Int16.size_of(), 2);
+        assert_eq!(CellType::UInt16.size_of(), 2);
+        assert_eq!(CellType::Int32.size_of(), 4);
+        assert_eq!(CellType::UInt32.size_of(), 4);
+        assert_eq!(CellType::Int64.size_of(), 8);
+        assert_eq!(CellType::UInt64.size_of(), 8);
+        assert_eq!(CellType::Float32.size_of(), 4);
+        assert_eq!(CellType::Float64.size_of(), 8);
+    }
+
+    #[test]
     fn has_min_max() {
+        // Confirm min/max returns correct values.
         macro_rules! test {
             ( $( ($ct:ident, $p:ident) ),* ) => {
                 $(
@@ -188,6 +218,7 @@ mod tests {
 
     #[test]
     fn can_string() {
+        // Confirm simple serialization.
         macro_rules! test {
             ( $( ($ct:ident, $p:ident) ),* ) => {
                 $( assert_eq!(CellType::$ct.to_string(), stringify!($ct)); )*
@@ -195,6 +226,7 @@ mod tests {
         }
         with_ct!(test);
 
+        // Test round-trip conversion to/from String
         for ct in CellType::iter() {
             let stringed = ct.to_string();
             let parsed = CellType::from_str(&stringed);
