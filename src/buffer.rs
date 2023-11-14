@@ -32,11 +32,11 @@ impl CellBuffer {
         with_ct!(empty)
     }
 
-    pub fn fill<C: CellEncoding>(value: C, len: usize) -> Self {
+    pub fn fill(value: CellValue, len: usize) -> Self {
         macro_rules! empty {
             ( $(($id:ident, $p:ident)),*) => {
-                match C::cell_type() {
-                    $(CellType::$id => Self::new(vec![value; len]),)*
+                match value.cell_type() {
+                    $(CellType::$id => Self::new::<$p>(vec![value.get().unwrap(); len]),)*
                 }
             };
         }
@@ -264,6 +264,13 @@ pub(crate) mod ops {
                     self.into_iter().zip(rhs.into_iter()).map(|(l, r)| l $op r).collect()
                 }
             }
+            impl $trt for CellBuffer {
+                type Output = CellBuffer;
+                fn $mth(self, rhs: Self) -> Self::Output {
+                    $trt::$mth(&self, &rhs)
+                }
+            }
+
         }
     }
     cb_bin_op!(Add, add, +);
@@ -275,6 +282,12 @@ pub(crate) mod ops {
         type Output = CellBuffer;
         fn neg(self) -> Self::Output {
             self.into_iter().into_iter().map(|v| -v).collect()
+        }
+    }
+    impl Neg for CellBuffer {
+        type Output = CellBuffer;
+        fn neg(self) -> Self::Output {
+            Neg::neg(&self)
         }
     }
 }
@@ -320,7 +333,7 @@ mod tests {
         macro_rules! test {
             ($( ($id:ident, $p:ident) ),*) => {
                 $({
-                    let mut cv = CellBuffer::fill(<$p>::default(), 3);
+                    let mut cv = CellBuffer::fill(<$p>::default().into(), 3);
                     let one = CellValue::new(<$p>::one());
                     cv.put(1, one).expect("Put one");
                     assert_eq!(cv.get(1), one.convert(CellType::$id).unwrap());
@@ -389,9 +402,9 @@ mod tests {
 
     #[test]
     fn debug() {
-        let b = CellBuffer::fill(37, 5);
+        let b = CellBuffer::fill(37.into(), 5);
         assert!(format!("{b:?}").starts_with("Int32CellBuffer"));
-        let b = CellBuffer::fill(37, 15);
+        let b = CellBuffer::fill(37.into(), 15);
         assert!(format!("{b:?}").contains("..."));
     }
 
@@ -405,6 +418,40 @@ mod tests {
                 let r = r.unwrap();
 
                 assert_eq!(r.cell_type(), target);
+            }
+        }
+    }
+
+    #[test]
+    fn unary() {
+        use num_traits::One;
+        macro_rules! test {
+            ($( ($id:ident, $p:ident) ),*) => {$({
+                let one: CellValue = <$p>::one().into();
+                let buf = -CellBuffer::fill(one, 3);
+                assert_eq!(buf.get(0), -one);
+            })*};
+        }
+
+        with_ct!(test);
+    }
+
+    #[test]
+    fn binary() {
+        for lhs_ct in CellType::iter() {
+            let lhs_val = lhs_ct.one();
+            let lhs = CellBuffer::fill(lhs_val, 3);
+            for rhs_ct in CellType::iter() {
+                let rhs_val = rhs_ct.one() + rhs_ct.one();
+                let rhs = CellBuffer::fill(rhs_val, 3);
+                assert_eq!((&lhs + &rhs).get(1), lhs_val + rhs_val);
+                assert_eq!((&rhs + &lhs).get(1), rhs_val + lhs_val);
+                assert_eq!((&lhs - &rhs).get(1), lhs_val - rhs_val);
+                assert_eq!((&rhs - &lhs).get(1), rhs_val - lhs_val);
+                assert_eq!((&lhs * &rhs).get(1), lhs_val * rhs_val);
+                assert_eq!((&rhs * &lhs).get(1), rhs_val * lhs_val);
+                assert_eq!((&lhs / &rhs).get(1), lhs_val / rhs_val);
+                assert_eq!((&rhs / &lhs).get(1), rhs_val / lhs_val);
             }
         }
     }

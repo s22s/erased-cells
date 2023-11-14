@@ -4,6 +4,7 @@
 
 use crate::error::Error;
 use crate::{with_ct, CellValue};
+use num_traits::{One, Zero};
 use std::fmt::{Debug, Display, Formatter};
 use std::mem;
 use std::str::FromStr;
@@ -45,11 +46,10 @@ impl FromStr for CellType {
 impl CellType {
     /// Get an iterator over all the valid enumeration values.
     pub fn iter() -> impl Iterator<Item = CellType> {
-        use CellType::*;
-        macro_rules! ct_array {
-           ( $( ($id:ident, $_p:ident) ),+) => { [ $( $id, )+ ] };
+        macro_rules! array {
+           ( $( ($id:ident, $_p:ident) ),+) => { [ $( CellType::$id, )+ ] };
         }
-        with_ct!(ct_array).into_iter()
+        with_ct!(array).into_iter()
     }
 
     /// Determine if `self` is integral or floating-point.
@@ -131,12 +131,36 @@ impl CellType {
         self.union(other) == other
     }
 
+    /// Construct the zero value for a variant.
+    pub fn zero(&self) -> CellValue {
+        macro_rules! zero {
+           ( $( ($id:ident, $p:ident) ),+) => {
+               match self {
+                   $(Self::$id => <$p>::zero().into(),)*
+               }
+           }
+        }
+        with_ct!(zero)
+    }
+
+    /// Construct the one value for a variant.
+    pub fn one(&self) -> CellValue {
+        macro_rules! one {
+           ( $( ($id:ident, $p:ident) ),+) => {
+               match self {
+                   $(Self::$id => <$p>::one().into(),)*
+               }
+           }
+        }
+        with_ct!(one)
+    }
+
     /// Determine the minimum value that can be represented by `self`.
     pub fn min(&self) -> CellValue {
         macro_rules! mins {
-            ( $( ($ct:ident, $p:ident) ),* ) => {
+            ( $( ($id:ident, $p:ident) ),* ) => {
                 match self {
-                    $( CellType::$ct => CellValue::$ct($p::MIN), )*
+                    $( CellType::$id => $p::MIN.into(), )*
                 }
             };
         }
@@ -146,9 +170,9 @@ impl CellType {
     /// Determine the maximum value that can be represented by `self`.
     pub fn max(&self) -> CellValue {
         macro_rules! maxs {
-            ( $( ($ct:ident, $p:ident) ),* ) => {
+            ( $( ($id:ident, $p:ident) ),* ) => {
                 match self {
-                    $( CellType::$ct => CellValue::$ct($p::MAX), )*
+                    $( CellType::$id => $p::MAX.into(), )*
                 }
             };
         }

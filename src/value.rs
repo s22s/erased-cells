@@ -7,7 +7,7 @@ use crate::{
     error::{Error, Result},
     CellEncoding, CellType,
 };
-use num_traits::ToPrimitive;
+use num_traits::{One, ToPrimitive, Zero};
 use paste::paste;
 
 /// CellValue enum constructor.
@@ -54,14 +54,13 @@ impl CellValue {
             src: self.cell_type(),
             dst: T::cell_type(),
         };
-        let conv = self.convert(T::cell_type())?;
+        let cv = self.convert(T::cell_type())?;
+
         macro_rules! conv {
              ($( ($id:ident, $_p:ident) ),*) => {
-                match conv {
-                    $(
-                    CellValue::$id(v) => T::static_cast(v).ok_or_else(err),
-                    )*
-                }
+                 match cv {
+                     $(CellValue::$id(v) => T::static_cast(v).ok_or_else(err),)*
+                 }
             };
         }
 
@@ -110,12 +109,13 @@ impl CellValue {
     }
 }
 
-impl From<CellValue> for f64 {
-    fn from(value: CellValue) -> Self {
-        value.to_f64().expect("f64 conversion")
-    }
-}
+// impl From<CellValue> for f64 {
+//     fn from(value: CellValue) -> Self {
+//         value.to_f64().expect("f64 conversion")
+//     }
+// }
 
+/// Convert from primitive to [`CellValue`].
 impl<T: CellEncoding> From<T> for CellValue {
     fn from(value: T) -> Self {
         value.into_cell_value()
@@ -164,6 +164,33 @@ impl ToPrimitive for CellValue {
     }
 }
 
+impl One for CellValue {
+    #[inline]
+    fn one() -> Self {
+        CellValue::UInt8(1)
+    }
+}
+
+impl Zero for CellValue {
+    #[inline]
+    fn zero() -> Self {
+        CellValue::UInt8(0)
+    }
+
+    fn is_zero(&self) -> bool {
+        macro_rules! zero {
+             ($( ($id:ident, $_p:ident) ),*) => {
+                match self {
+                    $(
+                    CellValue::$id(v) => v.is_zero(),
+                    )*
+                }
+            }
+        }
+        with_ct!(zero)
+    }
+}
+
 pub(crate) mod ops {
     use std::{
         cmp::Ordering,
@@ -181,7 +208,7 @@ pub(crate) mod ops {
                 type Output = CellValue;
                 fn $mth(self, rhs: Self) -> Self::Output {
                     let (lhs, rhs) = self.unify(&rhs);
-                    CellValue::new(<f64>::from(lhs) $op <f64>::from(rhs))
+                    CellValue::new(lhs.to_f64().unwrap() $op  rhs.to_f64().unwrap())
                 }
             }
         }
@@ -255,10 +282,10 @@ pub(crate) mod ops {
 mod tests {
     use crate::with_ct;
     use crate::{CellType, CellValue};
+    use num_traits::{One, Zero};
 
     #[test]
     fn cell_type() {
-        // Confirm CellValue::cell_type is correct.
         macro_rules! test {
             ($( ($id:ident, $p:ident) ),*) => {
                 $(assert_eq!(CellValue::$id($p::default()).cell_type(), CellType::$id);)*
@@ -301,6 +328,12 @@ mod tests {
             CellValue::UInt16(33).convert(CellType::Float32),
             Ok(CellValue::Float32(33.0))
         ));
+    }
+
+    #[test]
+    fn zero_one() {
+        assert!(CellValue::zero().is_zero());
+        assert!(!CellValue::one().is_zero());
     }
 
     #[test]

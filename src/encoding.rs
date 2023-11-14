@@ -3,13 +3,14 @@
  */
 
 use super::*;
+use num_traits::{One, Zero};
 use std::fmt::Debug;
 
 /// Trait for marking Rust primitives as having a corresponding [`CellType`].
 ///
 /// For example, [`f64`] is [`CellEncoding`] through [`CellType::Float64`],
 /// but [`isize`] is not `CellEncoding`.
-pub trait CellEncoding: Copy + Debug + Default {
+pub trait CellEncoding: Copy + Debug + Default + Zero + One {
     /// Returns the [`CellType`] covering `Self`.
     fn cell_type() -> CellType;
     /// Converts `self` into a [`CellValue`].
