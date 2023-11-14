@@ -239,23 +239,26 @@ pub(crate) mod ops {
 
     impl PartialOrd for CellValue {
         fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-            let (lhs, rhs) = self.unify(other);
-            macro_rules! ord {
-                ($( ($id:ident, $_p:ident) ),*) => {
-                    match (lhs, rhs) {
-                        $((CellValue::$id(l), CellValue::$id(r)) => l.partial_cmp(&r),)*
-                        _ => unreachable!("{self:?} <> {other:?}"),
-                    }
-                };
-            }
-            with_ct!(ord)
+            Some(self.cmp(other))
         }
     }
 
     impl Ord for CellValue {
         fn cmp(&self, other: &Self) -> Ordering {
-            self.partial_cmp(other)
-                .unwrap_or_else(|| self.to_f64().unwrap().total_cmp(&other.to_f64().unwrap()))
+            let (lhs, rhs) = self.unify(other);
+            match (lhs, rhs) {
+                (CellValue::UInt8(l), CellValue::UInt8(r)) => Ord::cmp(&l, &r),
+                (CellValue::UInt16(l), CellValue::UInt16(r)) => Ord::cmp(&l, &r),
+                (CellValue::UInt32(l), CellValue::UInt32(r)) => Ord::cmp(&l, &r),
+                (CellValue::UInt64(l), CellValue::UInt64(r)) => Ord::cmp(&l, &r),
+                (CellValue::Int8(l), CellValue::Int8(r)) => Ord::cmp(&l, &r),
+                (CellValue::Int16(l), CellValue::Int16(r)) => Ord::cmp(&l, &r),
+                (CellValue::Int32(l), CellValue::Int32(r)) => Ord::cmp(&l, &r),
+                (CellValue::Int64(l), CellValue::Int64(r)) => Ord::cmp(&l, &r),
+                (CellValue::Float32(l), CellValue::Float32(r)) => l.total_cmp(&r),
+                (CellValue::Float64(l), CellValue::Float64(r)) => l.total_cmp(&r),
+                _ => unreachable!("{self:?} <> {other:?}"),
+            }
         }
     }
 
@@ -319,10 +322,12 @@ mod tests {
             CellValue::UInt8(43).convert(CellType::Int16),
             Ok(CellValue::Int16(43))
         ));
-        assert!(CellValue::Float32(3.14).convert(CellType::Int64).is_err());
+        assert!(CellValue::Float32(3.11111)
+            .convert(CellType::Int64)
+            .is_err());
         assert!(matches!(
-            CellValue::Float32(3.14).convert(CellType::Float32),
-            Ok(CellValue::Float32(3.14))
+            CellValue::Float32(3.11111).convert(CellType::Float32),
+            Ok(CellValue::Float32(3.11111))
         ));
         assert!(matches!(
             CellValue::UInt16(33).convert(CellType::Float32),

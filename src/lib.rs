@@ -2,7 +2,22 @@
  * Copyright (c) 2023. Astraea, Inc. All rights reserved.
  */
 
-//! Encoding and manipulation of runtime-dynamic raster cell values.
+//! Encoding and manipulation of runtime-dynamic cell values.
+//!
+//! # Synopsis
+//!
+//! This crate enables the manipulation of heterogeneous values and buffers of Rust primitive numeric types.
+//! It is useful in cases where the numeric encoding is either not known at compile-time, or when
+//! multiple encodings are in use yet need to be treated in a homogenous way. The types are
+//! normalized using discriminated unions (`enums`).
+//!
+//! There are three core enums:
+//!
+//! * [`CellType`]: An enumeration of each supported primitive type.
+//! * [`CellValue`]: A scalar primitive value stored as a [`CellType`] associated variant.
+//! * [`CellBuffer`]: A `Vec<_>` of primitive values stored as a [`CellType`] associated variant.
+//!
+//!
 
 mod buffer;
 mod ctype;

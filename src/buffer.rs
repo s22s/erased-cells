@@ -43,6 +43,7 @@ impl CellBuffer {
         with_ct!(empty)
     }
 
+    /// Get the length of the buffer.
     pub fn len(&self) -> usize {
         macro_rules! len {
             ( $(($id:ident, $_p:ident)),*) => {
@@ -54,6 +55,12 @@ impl CellBuffer {
         with_ct!(len)
     }
 
+    /// Determine if the buffer has zero values in it.
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
+    /// Get the cell type of the encoded values.
     pub fn cell_type(&self) -> CellType {
         macro_rules! ct {
             ( $(($id:ident, $_p:ident)),*) => {
@@ -281,7 +288,7 @@ pub(crate) mod ops {
     impl Neg for &CellBuffer {
         type Output = CellBuffer;
         fn neg(self) -> Self::Output {
-            self.into_iter().into_iter().map(|v| -v).collect()
+            self.into_iter().map(|v| -v).collect()
         }
     }
     impl Neg for CellBuffer {
