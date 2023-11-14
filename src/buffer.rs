@@ -4,14 +4,13 @@
 
 use crate::error::{Error, Result};
 use crate::{with_ct, CellEncoding, CellType, CellValue};
-use serde::{Deserialize, Serialize};
 use std::fmt::{Debug, Formatter};
 
 /// CellBuffer enum constructor.
 macro_rules! cv_enum {
     ( $(($id:ident, $p:ident)),*) => {
         /// Buffer variants for each [`CellType`]
-        #[derive(Clone, Serialize, Deserialize)]
+        #[derive(Clone)]
         pub enum CellBuffer { $($id(Vec<$p>)),* }
     }
 }
@@ -21,11 +20,23 @@ impl CellBuffer {
     pub fn new<T: CellEncoding>(data: Vec<T>) -> Self {
         data.into()
     }
-    pub fn empty(len: usize, ct: CellType) -> Self {
+
+    pub fn defaults(len: usize, ct: CellType) -> Self {
         macro_rules! empty {
             ( $(($id:ident, $p:ident)),*) => {
                 match ct {
                     $(CellType::$id => Self::new(vec![$p::default(); len]),)*
+                }
+            };
+        }
+        with_ct!(empty)
+    }
+
+    pub fn fill<C: CellEncoding>(value: C, len: usize) -> Self {
+        macro_rules! empty {
+            ( $(($id:ident, $p:ident)),*) => {
+                match C::cell_type() {
+                    $(CellType::$id => Self::new(vec![value; len]),)*
                 }
             };
         }
@@ -81,38 +92,22 @@ impl CellBuffer {
     }
 
     pub fn convert(&self, cell_type: CellType) -> Result<Self> {
-        let err = || Err(Error::NarrowingError { src: self.cell_type(), dst: cell_type });
-        match self {
-            Self::UInt8(b) => match cell_type {
-                CellType::UInt8 => Ok(self.clone()),
-                CellType::UInt16 => Ok(Self::UInt16(b.into_iter().map(|&x| x as u16).collect())),
-                CellType::Float32 => Ok(Self::Float32(b.into_iter().map(|&x| x as f32).collect())),
-                CellType::Float64 => Ok(Self::Float64(b.into_iter().map(|&x| x as f64).collect())),
-                _ => todo!(),
-            },
-            Self::UInt16(b) => match cell_type {
-                CellType::UInt8 => err(),
-                CellType::UInt16 => Ok(self.clone()),
-                CellType::Float32 => Ok(Self::Float32(b.into_iter().map(|&x| x as f32).collect())),
-                CellType::Float64 => Ok(Self::Float64(b.into_iter().map(|&x| x as f64).collect())),
-                _ => todo!(),
-            },
-            Self::Float32(b) => match cell_type {
-                CellType::UInt8 => err(),
-                CellType::UInt16 => err(),
-                CellType::Float32 => Ok(self.clone()),
-                CellType::Float64 => Ok(Self::Float64(b.into_iter().map(|&x| x as f64).collect())),
-                _ => todo!(),
-            },
-            Self::Float64(_) => match cell_type {
-                CellType::UInt8 => err(),
-                CellType::UInt16 => err(),
-                CellType::Float32 => err(),
-                CellType::Float64 => Ok(self.clone()),
-                _ => todo!(),
-            },
-            _ => todo!(),
+        let err = || Error::NarrowingError { src: self.cell_type(), dst: cell_type };
+
+        if !self.cell_type().can_fit_into(cell_type) {
+            return Err(err());
         }
+
+        if cell_type == self.cell_type() {
+            return Ok(self.clone());
+        }
+
+        let r: CellBuffer = self
+            .into_iter()
+            .map(|v| v.convert(cell_type).unwrap())
+            .collect();
+
+        Ok(r)
     }
 
     pub fn minmax(&self) -> (CellValue, CellValue) {
@@ -131,38 +126,6 @@ impl CellBuffer {
             }
         }
         with_ct!(to_vec)
-    }
-}
-
-impl From<&CellBuffer> for CellType {
-    fn from(value: &CellBuffer) -> Self {
-        value.cell_type()
-    }
-}
-
-impl<T: CellEncoding> From<Vec<T>> for CellBuffer {
-    fn from(values: Vec<T>) -> Self {
-        macro_rules! from {
-            ( $(($id:ident, $_p:ident)),*) => {
-                match T::cell_type() {
-                    $(CellType::$id => Self::$id(danger::cast(values)),)*
-                }
-            }
-        }
-        with_ct!(from)
-    }
-}
-
-impl<T: CellEncoding> From<&[T]> for CellBuffer {
-    fn from(values: &[T]) -> Self {
-        macro_rules! from {
-            ( $(($id:ident, $_p:ident)),*) => {
-                match T::cell_type() {
-                    $(CellType::$id => Self::$id(danger::cast(values.to_vec())),)*
-                }
-            }
-        }
-        with_ct!(from)
     }
 }
 
@@ -232,6 +195,32 @@ impl FromIterator<CellValue> for CellBuffer {
                 with_ct!(conv)
             }
         }
+    }
+}
+
+impl<T: CellEncoding> From<Vec<T>> for CellBuffer {
+    fn from(values: Vec<T>) -> Self {
+        macro_rules! from {
+            ( $(($id:ident, $_p:ident)),*) => {
+                match T::cell_type() {
+                    $(CellType::$id => Self::$id(danger::cast(values)),)*
+                }
+            }
+        }
+        with_ct!(from)
+    }
+}
+
+impl<T: CellEncoding> From<&[T]> for CellBuffer {
+    fn from(values: &[T]) -> Self {
+        macro_rules! from {
+            ( $(($id:ident, $_p:ident)),*) => {
+                match T::cell_type() {
+                    $(CellType::$id => Self::$id(danger::cast(values.to_vec())),)*
+                }
+            }
+        }
+        with_ct!(from)
     }
 }
 
@@ -306,7 +295,54 @@ mod danger {
 
 #[cfg(test)]
 mod tests {
-    use crate::{CellBuffer, CellType, CellValue};
+    use crate::{with_ct, CellBuffer, CellType, CellValue};
+
+    fn bigger(start: CellType) -> impl Iterator<Item = CellType> {
+        CellType::iter().filter(move |ct| start.can_fit_into(*ct))
+    }
+
+    #[test]
+    fn defaults() {
+        macro_rules! test {
+            ($( ($id:ident, $p:ident) ),*) => {
+                $({
+                    let cv = CellBuffer::defaults(3, CellType::$id);
+                    assert_eq!(cv.len(), 3);
+                    assert_eq!(cv.get(0), CellValue::new(<$p>::default()));
+                })*};
+        }
+        with_ct!(test);
+    }
+
+    #[test]
+    fn put_get() {
+        use num_traits::One;
+        macro_rules! test {
+            ($( ($id:ident, $p:ident) ),*) => {
+                $({
+                    let mut cv = CellBuffer::fill(<$p>::default(), 3);
+                    let one = CellValue::new(<$p>::one());
+                    cv.put(1, one).expect("Put one");
+                    assert_eq!(cv.get(1), one.convert(CellType::$id).unwrap());
+                })*};
+        }
+        with_ct!(test);
+    }
+
+    #[test]
+    fn to_vec() {
+        macro_rules! test {
+            ($( ($id:ident, $p:ident) ),*) => {
+                $({
+                    let v = vec![<$p>::default(); 3];
+                    let buf = CellBuffer::new(v.clone());
+                    let r = buf.to_vec::<$p>().unwrap();
+                    assert_eq!(r, v);
+                })*
+            };
+        }
+        with_ct!(test);
+    }
 
     #[test]
     fn minmax() {
@@ -322,7 +358,7 @@ mod tests {
     }
 
     #[test]
-    fn from_iter() {
+    fn from_others() {
         let v = vec![
             CellValue::UInt16(3),
             CellValue::UInt16(4),
@@ -335,9 +371,41 @@ mod tests {
         assert_eq!(b.get(2), CellValue::UInt16(5));
 
         let v = vec![33.3f32, 44.4, 55.5];
-        let b: CellBuffer = v.into_iter().collect();
+        let b: CellBuffer = v.clone().into_iter().collect();
         assert_eq!(b.cell_type(), CellType::Float32);
         assert_eq!(b.len(), 3);
         assert_eq!(b.get(2), CellValue::Float32(55.5));
+
+        let b: CellBuffer = v.clone().into();
+        assert_eq!(b.cell_type(), CellType::Float32);
+        assert_eq!(b.len(), 3);
+        assert_eq!(b.get(2), CellValue::Float32(55.5));
+
+        let b: CellBuffer = v.clone().as_slice().into();
+        assert_eq!(b.cell_type(), CellType::Float32);
+        assert_eq!(b.len(), 3);
+        assert_eq!(b.get(2), CellValue::Float32(55.5));
+    }
+
+    #[test]
+    fn debug() {
+        let b = CellBuffer::fill(37, 5);
+        assert!(format!("{b:?}").starts_with("Int32CellBuffer"));
+        let b = CellBuffer::fill(37, 15);
+        assert!(format!("{b:?}").contains("..."));
+    }
+
+    #[test]
+    fn convert() {
+        for ct in CellType::iter() {
+            let buf = CellBuffer::defaults(3, ct);
+            for target in bigger(ct) {
+                let r = buf.convert(target);
+                assert!(r.is_ok(), "{ct} vs {target}");
+                let r = r.unwrap();
+
+                assert_eq!(r.cell_type(), target);
+            }
+        }
     }
 }

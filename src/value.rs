@@ -2,26 +2,26 @@
  * Copyright (c) 2023. Astraea, Inc. All rights reserved.
  */
 
-use num_traits::ToPrimitive;
-use serde::{Deserialize, Serialize};
-
 use crate::with_ct;
 use crate::{
     error::{Error, Result},
     CellEncoding, CellType,
 };
+use num_traits::ToPrimitive;
+use paste::paste;
 
 /// CellValue enum constructor.
 macro_rules! cv_enum {
     ( $(($id:ident, $p:ident)),*) => {
         /// Value variants for each [`CellType`]
-        #[derive(Debug, Copy, Clone, Serialize, Deserialize)]
+        #[derive(Debug, Copy, Clone)]
         pub enum CellValue { $($id($p)),* }
     }
 }
 with_ct!(cv_enum);
 
 impl CellValue {
+    /// Construct new [`CellValue`] from a statically known [`CellEncoding`].
     pub fn new<T: CellEncoding + Sized>(value: T) -> Self {
         macro_rules! ctor {
             ( $( ($id:ident, $p:ident) ),*) => {
@@ -74,9 +74,11 @@ impl CellValue {
     /// Returns `Ok(CellValue)` if the [`CellType`] of `cell_type` is the same or wider than
     /// the encoded value, or `Err(Error)` if `T` is narrower.
     pub fn convert(&self, cell_type: CellType) -> Result<Self> {
-        // TODO: Do something more like `GDALAdjustValueToDataType`
+        // TODO: Do something more like `GDALAdjustValueToDataType`?
+
         let err = || Error::NarrowingError { src: self.cell_type(), dst: cell_type };
-        if self.cell_type().union(cell_type) != cell_type {
+
+        if !self.cell_type().can_fit_into(cell_type) {
             return Err(err());
         }
 
@@ -84,18 +86,18 @@ impl CellValue {
             return Ok(*self);
         }
 
-        match cell_type {
-            CellType::UInt8 => Ok(self.to_u8().ok_or_else(err)?.into_cell_value()),
-            CellType::UInt16 => Ok(self.to_u16().ok_or_else(err)?.into_cell_value()),
-            CellType::UInt32 => Ok(self.to_u32().ok_or_else(err)?.into_cell_value()),
-            CellType::UInt64 => Ok(self.to_u64().ok_or_else(err)?.into_cell_value()),
-            CellType::Int8 => Ok(self.to_i8().ok_or_else(err)?.into_cell_value()),
-            CellType::Int16 => Ok(self.to_i16().ok_or_else(err)?.into_cell_value()),
-            CellType::Int32 => Ok(self.to_i32().ok_or_else(err)?.into_cell_value()),
-            CellType::Int64 => Ok(self.to_i64().ok_or_else(err)?.into_cell_value()),
-            CellType::Float32 => Ok(self.to_f32().ok_or_else(err)?.into_cell_value()),
-            CellType::Float64 => Ok(self.to_f64().ok_or_else(err)?.into_cell_value()),
+        macro_rules! convert {
+            ($( ($id:ident, $p:ident) ),*) => { paste! {
+
+                match cell_type {
+                    $(
+                      CellType::$id => Ok(self.[<to_ $p>]().ok_or_else(err)?.into_cell_value()),
+
+                    )*
+                }
+            }}
         }
+        with_ct!(convert)
     }
 
     /// Determines the smallest cell type that can contain `self` and `other`, and then
@@ -120,6 +122,7 @@ impl<T: CellEncoding> From<T> for CellValue {
     }
 }
 
+/// Provide `num_traits` interop.
 impl ToPrimitive for CellValue {
     fn to_i64(&self) -> Option<i64> {
         macro_rules! conv {
@@ -248,6 +251,7 @@ pub(crate) mod ops {
 }
 
 #[cfg(test)]
+#[allow(illegal_floating_point_literal_pattern)]
 mod tests {
     use crate::with_ct;
     use crate::{CellType, CellValue};
@@ -288,11 +292,18 @@ mod tests {
             CellValue::UInt8(43).convert(CellType::Int16),
             Ok(CellValue::Int16(43))
         ));
-        assert!(CellValue::Float32(3.14).convert(CellType::Int64).is_err())
+        assert!(CellValue::Float32(3.14).convert(CellType::Int64).is_err());
+        assert!(matches!(
+            CellValue::Float32(3.14).convert(CellType::Float32),
+            Ok(CellValue::Float32(3.14))
+        ));
+        assert!(matches!(
+            CellValue::UInt16(33).convert(CellType::Float32),
+            Ok(CellValue::Float32(33.0))
+        ));
     }
 
     #[test]
-    #[allow(illegal_floating_point_literal_pattern)]
     fn unary() {
         assert!(matches!(-CellValue::UInt8(1), CellValue::Int16(-1)));
         assert!(matches!(-CellValue::UInt16(1), CellValue::Int32(-1)));

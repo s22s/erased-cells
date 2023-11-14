@@ -5,5 +5,5 @@ edition = "2021"
 
 [dependencies]
 num-traits = "0.2"
-serde = { version = "1", features = ["derive"] }
 thiserror = "1"
+paste = "1"

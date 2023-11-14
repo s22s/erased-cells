@@ -4,7 +4,6 @@
 
 use crate::error::Error;
 use crate::{with_ct, CellValue};
-use serde::{Deserialize, Serialize};
 use std::fmt::{Debug, Display, Formatter};
 use std::mem;
 use std::str::FromStr;
@@ -13,7 +12,7 @@ use std::str::FromStr;
 macro_rules! cv_enum {
     ( $(($id:ident, $_p:ident)),*) => {
         /// Cell-type variants
-        #[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize)]
+        #[derive(Debug, Copy, Clone, PartialEq, Eq)]
         #[repr(u8)]
         pub enum CellType { $($id),* }
     }
@@ -123,13 +122,16 @@ impl CellType {
             (4, _, false) => Self::Float32,
             (8, false, true) => Self::UInt64,
             (8, true, true) => Self::Int64,
-            (_, _, false) => Self::Float64,
-            _ => unreachable!(
-                "No union for {self} & {other}: bytes={min_bytes}, signed={signed}, integral={integral}"
-            ),
+            _ => Self::Float64,
         }
     }
 
+    /// Determine of `self` can fit within `other`.
+    pub fn can_fit_into(self, other: Self) -> bool {
+        self.union(other) == other
+    }
+
+    /// Determine the minimum value that can be represented by `self`.
     pub fn min(&self) -> CellValue {
         macro_rules! mins {
             ( $( ($ct:ident, $p:ident) ),* ) => {
@@ -141,6 +143,7 @@ impl CellType {
         with_ct!(mins)
     }
 
+    /// Determine the maximum value that can be represented by `self`.
     pub fn max(&self) -> CellValue {
         macro_rules! maxs {
             ( $( ($ct:ident, $p:ident) ),* ) => {
