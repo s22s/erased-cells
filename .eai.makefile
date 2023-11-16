@@ -1,20 +1,23 @@
+.PHONY: docs
 docs: ## Build documentation
 	@if [[ ! -d docs ]]; then \
 		git worktree add docs gh-pages; \
 	fi
-	@cargo doc --no-deps && cp -r target/doc/*
+	@cargo doc --no-deps && cp -r target/doc/* docs/
+	@echo "<meta http-equiv=\"refresh\" content=\"0; url=$(subst -,_,$(NAME))\">" > docs/index.html
+	@touch docs/.nojekyll
 
 docs-repair:
-	mkdir -p docs/build/html || true; \
-	git worktree repair docs/build/html; \
-	(cd docs/build/html && git pull)
+	mkdir -p docs || true; \
+	git worktree repair docs; \
+	(cd docs && git pull)
 
 docs-publish: ## Push built documentation to gh-pages branch
-	@cd docs/build/html && \
+	@cd docs && \
 	git add --all && \
 	git commit -m'Documentation update $(shell date)' && \
 	git push origin gh-pages
 
 docs-clean: ## Clear documentation build artifacts
-	@make -C docs clean
+	@rm -r docs/*
 
