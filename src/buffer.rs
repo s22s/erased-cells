@@ -4,13 +4,16 @@
 
 use crate::error::{Error, Result};
 use crate::{with_ct, CellEncoding, CellType, CellValue};
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
 use std::fmt::{Debug, Formatter};
 
 /// CellBuffer enum constructor.
 macro_rules! cv_enum {
     ( $(($id:ident, $p:ident)),*) => {
         /// Buffer variants for each [`CellType`]
-        #[derive(Clone)]
+        #[derive(Clone, PartialEq, PartialOrd)]
+        #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
         pub enum CellBuffer { $($id(Vec<$p>)),* }
     }
 }

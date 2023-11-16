@@ -9,12 +9,15 @@ use crate::{
 };
 use num_traits::{One, ToPrimitive, Zero};
 use paste::paste;
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
 
 /// CellValue enum constructor.
 macro_rules! cv_enum {
     ( $(($id:ident, $p:ident)),*) => {
         /// Value variants for each [`CellType`]
         #[derive(Debug, Copy, Clone)]
+        #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
         pub enum CellValue { $($id($p)),* }
     }
 }
@@ -108,12 +111,6 @@ impl CellValue {
         (self.convert(dest).unwrap(), other.convert(dest).unwrap())
     }
 }
-
-// impl From<CellValue> for f64 {
-//     fn from(value: CellValue) -> Self {
-//         value.to_f64().expect("f64 conversion")
-//     }
-// }
 
 /// Convert from primitive to [`CellValue`].
 impl<T: CellEncoding> From<T> for CellValue {

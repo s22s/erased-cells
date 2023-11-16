@@ -5,15 +5,18 @@
 use crate::error::Error;
 use crate::{with_ct, CellValue};
 use num_traits::{One, Zero};
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
 use std::fmt::{Debug, Display, Formatter};
 use std::mem;
 use std::str::FromStr;
 
-// CellType enum constructor.
+/// CellType enum constructor.
 macro_rules! cv_enum {
     ( $(($id:ident, $_p:ident)),*) => {
         /// Cell-type variants
         #[derive(Debug, Copy, Clone, PartialEq, Eq)]
+        #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
         #[repr(u8)]
         pub enum CellType { $($id),* }
     }
