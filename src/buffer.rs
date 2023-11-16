@@ -32,6 +32,7 @@ impl CellBuffer {
         with_ct!(empty)
     }
 
+    /// Create a buffer of size `len` with all values `value`.
     pub fn fill(value: CellValue, len: usize) -> Self {
         macro_rules! empty {
             ( $(($id:ident, $p:ident)),*) => {
@@ -41,6 +42,14 @@ impl CellBuffer {
             };
         }
         with_ct!(empty)
+    }
+
+    /// Fill a buffer of size `len` with values from a closure.
+    ///
+    /// First parameter of the closure is the current index.  
+    pub fn fill_with<T: CellEncoding>(len: usize, f: fn(usize) -> T) -> Self {
+        let v: Vec<T> = (0..len).map(f).collect();
+        Self::new(v)
     }
 
     /// Get the length of the buffer.
