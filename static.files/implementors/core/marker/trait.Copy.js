@@ -1,0 +1,3 @@
+(function() {var implementors = {
+"erased_cells":[["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/1.73.0/core/marker/trait.Copy.html\" title=\"trait core::marker::Copy\">Copy</a> for <a class=\"enum\" href=\"erased_cells/enum.CellValue.html\" title=\"enum erased_cells::CellValue\">CellValue</a>"],["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/1.73.0/core/marker/trait.Copy.html\" title=\"trait core::marker::Copy\">Copy</a> for <a class=\"enum\" href=\"erased_cells/enum.CellType.html\" title=\"enum erased_cells::CellType\">CellType</a>"]]
+};if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()
