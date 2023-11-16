@@ -472,19 +472,25 @@
 <a href="#472" id="472">472</a>
 <a href="#473" id="473">473</a>
 <a href="#474" id="474">474</a>
+<a href="#475" id="475">475</a>
+<a href="#476" id="476">476</a>
+<a href="#477" id="477">477</a>
 </pre></div><pre class="rust"><code><span class="comment">/*
  * Copyright (c) 2023. Astraea, Inc. All rights reserved.
  */
 
 </span><span class="kw">use </span><span class="kw">crate</span>::error::{Error, <span class="prelude-ty">Result</span>};
 <span class="kw">use crate</span>::{with_ct, CellEncoding, CellType, CellValue};
+<span class="attr">#[cfg(feature = <span class="string">&quot;serde&quot;</span>)]
+</span><span class="kw">use </span>serde::{Deserialize, Serialize};
 <span class="kw">use </span>std::fmt::{Debug, Formatter};
 
 <span class="doccomment">/// CellBuffer enum constructor.
 </span><span class="macro">macro_rules! </span>cv_enum {
     ( $((<span class="macro-nonterminal">$id</span>:ident, <span class="macro-nonterminal">$p</span>:ident)),<span class="kw-2">*</span>) =&gt; {
         <span class="doccomment">/// Buffer variants for each [`CellType`]
-        </span><span class="attr">#[derive(Clone)]
+        </span><span class="attr">#[derive(Clone, PartialEq, PartialOrd)]
+        #[cfg_attr(feature = <span class="string">&quot;serde&quot;</span>, derive(Serialize, Deserialize))]
         </span><span class="kw">pub enum </span>CellBuffer { $(<span class="macro-nonterminal">$id</span>(Vec&lt;<span class="macro-nonterminal">$p</span>&gt;)),* }
     }
 }

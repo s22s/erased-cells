@@ -264,6 +264,9 @@
 <a href="#264" id="264">264</a>
 <a href="#265" id="265">265</a>
 <a href="#266" id="266">266</a>
+<a href="#267" id="267">267</a>
+<a href="#268" id="268">268</a>
+<a href="#269" id="269">269</a>
 </pre></div><pre class="rust"><code><span class="comment">/*
  * Copyright (c) 2023. Astraea, Inc. All rights reserved.
  */
@@ -271,15 +274,18 @@
 </span><span class="kw">use </span><span class="kw">crate</span>::error::Error;
 <span class="kw">use crate</span>::{with_ct, CellValue};
 <span class="kw">use </span>num_traits::{One, Zero};
+<span class="attr">#[cfg(feature = <span class="string">&quot;serde&quot;</span>)]
+</span><span class="kw">use </span>serde::{Deserialize, Serialize};
 <span class="kw">use </span>std::fmt::{Debug, Display, Formatter};
 <span class="kw">use </span>std::mem;
 <span class="kw">use </span>std::str::FromStr;
 
-<span class="comment">// CellType enum constructor.
+<span class="doccomment">/// CellType enum constructor.
 </span><span class="macro">macro_rules! </span>cv_enum {
     ( $((<span class="macro-nonterminal">$id</span>:ident, <span class="macro-nonterminal">$_p</span>:ident)),<span class="kw-2">*</span>) =&gt; {
         <span class="doccomment">/// Cell-type variants
         </span><span class="attr">#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+        #[cfg_attr(feature = <span class="string">&quot;serde&quot;</span>, derive(Serialize, Deserialize))]
         #[repr(u8)]
         </span><span class="kw">pub enum </span>CellType { $(<span class="macro-nonterminal">$id</span>),* }
     }
