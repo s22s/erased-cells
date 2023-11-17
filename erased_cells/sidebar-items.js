@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["CellBuffer","CellType","CellValue"],"mod":["error"],"struct":["CellBufferIterator"],"trait":["CellEncoding"]};
+window.SIDEBAR_ITEMS = {"enum":["CellBuffer","CellType","CellValue"],"macro":["with_ct"],"mod":["error"],"struct":["CellBufferIterator"],"trait":["CellEncoding"]};

@@ -81,6 +81,27 @@
 <a href="#81" id="81">81</a>
 <a href="#82" id="82">82</a>
 <a href="#83" id="83">83</a>
+<a href="#84" id="84">84</a>
+<a href="#85" id="85">85</a>
+<a href="#86" id="86">86</a>
+<a href="#87" id="87">87</a>
+<a href="#88" id="88">88</a>
+<a href="#89" id="89">89</a>
+<a href="#90" id="90">90</a>
+<a href="#91" id="91">91</a>
+<a href="#92" id="92">92</a>
+<a href="#93" id="93">93</a>
+<a href="#94" id="94">94</a>
+<a href="#95" id="95">95</a>
+<a href="#96" id="96">96</a>
+<a href="#97" id="97">97</a>
+<a href="#98" id="98">98</a>
+<a href="#99" id="99">99</a>
+<a href="#100" id="100">100</a>
+<a href="#101" id="101">101</a>
+<a href="#102" id="102">102</a>
+<a href="#103" id="103">103</a>
+<a href="#104" id="104">104</a>
 </pre></div><pre class="rust"><code><span class="comment">/*
  * Copyright (c) 2023. Astraea, Inc. All rights reserved.
  */
@@ -146,7 +167,29 @@
 <span class="kw">pub use </span>value::<span class="kw-2">*</span>;
 
 <span class="doccomment">/// A [callback style](https://danielkeep.github.io/tlborm/book/pat-callbacks.html)
-/// macro used to construct various implementations in this crate.
+/// macro used to construct various implementations covering all [`CellType`]s.
+///
+/// It calls the passed identifier as a macro with two parameters:
+/// * the cell type id (e.g. `UInt8`),
+/// * the cell type primitive (e.g. `u8`).
+///
+/// # Example
+/// ```rust
+/// use erased_cells::{with_ct, CellType};
+/// fn primitive_name(ct: CellType) -&gt; &amp;&#39;static str {
+///     macro_rules! primitive_name {
+///        ($(($id:ident, $p:ident)),*) =&gt; {
+///             match ct {
+///                 $(CellType::$id =&gt; stringify!($p),)*
+///             }
+///        };
+///     }
+///     with_ct!(primitive_name)
+/// }
+///
+/// assert_eq!(primitive_name(CellType::Float32), &quot;f32&quot;);
+/// ```
+</span><span class="attr">#[macro_export]
 </span><span class="macro">macro_rules! </span>with_ct {
     (<span class="macro-nonterminal">$callback</span>:ident) =&gt; {
         <span class="macro-nonterminal">$</span><span class="macro">callback! </span>{
@@ -163,5 +206,4 @@
         }
     };
 }
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">use </span>with_ct;
 </code></pre></div></section></main></body></html>
