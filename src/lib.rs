@@ -63,7 +63,29 @@ pub use value::ops::*;
 pub use value::*;
 
 /// A [callback style](https://danielkeep.github.io/tlborm/book/pat-callbacks.html)
-/// macro used to construct various implementations in this crate.
+/// macro used to construct various implementations covering all [`CellType`]s.
+///
+/// It calls the passed identifier as a macro with two parameters:
+/// * the cell type id (e.g. `UInt8`),
+/// * the cell type primitive (e.g. `u8`).
+///
+/// # Example
+/// ```rust
+/// use erased_cells::{with_ct, CellType};
+/// fn primitive_name(ct: CellType) -> &'static str {
+///     macro_rules! primitive_name {
+///        ($(($id:ident, $p:ident)),*) => {
+///             match ct {
+///                 $(CellType::$id => stringify!($p),)*
+///             }
+///        };
+///     }
+///     with_ct!(primitive_name)
+/// }
+///
+/// assert_eq!(primitive_name(CellType::Float32), "f32");
+/// ```
+#[macro_export]
 macro_rules! with_ct {
     ($callback:ident) => {
         $callback! {
@@ -80,4 +102,3 @@ macro_rules! with_ct {
         }
     };
 }
-pub(crate) use with_ct;
