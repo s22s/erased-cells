@@ -198,14 +198,24 @@ pub(crate) mod ops {
 
     use crate::{with_ct, CellValue};
 
-    // NOTE: We currently take the position that any math ops will promote all integral primitives to f64 first
+    // NOTE: We _currently_ take the position that any math ops will promote all integral primitives to f64 first
+    // Will probably need to revisit this.
+    // TODO: figure out how to implement `<primitive> op <CellValue>` via `with_ct`.
     macro_rules! cv_bin_op {
         ($trt:ident, $mth:ident, $op:tt) => {
-            impl $trt for CellValue {
+            impl <R> $trt<R> for &CellValue where R: Into<CellValue> {
                 type Output = CellValue;
-                fn $mth(self, rhs: Self) -> Self::Output {
-                    let (lhs, rhs) = self.unify(&rhs);
-                    CellValue::new(lhs.to_f64().unwrap() $op  rhs.to_f64().unwrap())
+                fn $mth(self, rhs: R) -> Self::Output {
+                    let lhs = self;
+                    let rhs = rhs.into();
+                    let (lhs, rhs) = lhs.unify(&rhs);
+                    CellValue::new(lhs.to_f64().unwrap() $op rhs.to_f64().unwrap())
+                }
+            }
+            impl <R> $trt<R> for CellValue where R: Into<CellValue> {
+                type Output = CellValue;
+                fn $mth(self, rhs: R) -> Self::Output {
+                    $trt::$mth(&self, rhs)
                 }
             }
         }
@@ -353,7 +363,9 @@ mod tests {
         let l = CellValue::UInt8(1);
         let r = CellValue::UInt8(2);
         assert_eq!(l + r, CellValue::Float64(3.));
+        assert_eq!(l + 2, CellValue::Float64(3.));
         assert_eq!(l - r, CellValue::Float64(-1.));
+        assert_eq!(l - 2, CellValue::Float64(-1.));
         assert_eq!(r - l, CellValue::Float64(1.));
         assert_eq!(l * r, CellValue::Float64(2.));
         assert_eq!(r * l, CellValue::Float64(2.));

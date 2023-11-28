@@ -16,23 +16,3 @@ pub enum Error {
     #[error("Unable to parse {0} as a {1}")]
     ParseError(String, &'static str),
 }
-
-// pub trait ExpectOr {
-//     type Output;
-//     fn expect_else<F>(self, msg: F) -> Result<Self::Output>
-//     where
-//         F: FnOnce() -> String;
-// }
-//
-// impl<T> ExpectOr for Option<T> {
-//     type Output = T;
-//     fn expect_else<F>(self, msg: F) -> Result<T>
-//     where
-//         F: FnOnce() -> String,
-//     {
-//         match self {
-//             None => Err(Error::ExpectedError(msg())),
-//             Some(v) => Ok(v),
-//         }
-//     }
-// }

@@ -4,7 +4,8 @@ version = "0.1.0"
 edition = "2021"
 
 [features]
-default = ["serde"]
+default = ["masked", "serde"]
+masked = []
 serde = ["dep:serde"]
 
 [dependencies]

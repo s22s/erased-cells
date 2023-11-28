@@ -3,32 +3,37 @@
  */
 
 use crate::error::{Error, Result};
-use crate::{with_ct, CellEncoding, CellType, CellValue};
+use crate::{with_ct, BufferOps, CellEncoding, CellType, CellValue};
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 use std::fmt::{Debug, Formatter};
 
 /// CellBuffer enum constructor.
-macro_rules! cv_enum {
+macro_rules! cb_enum {
     ( $(($id:ident, $p:ident)),*) => {
-        /// Buffer variants for each [`CellType`]
         #[derive(Clone, PartialEq, PartialOrd)]
         #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
         pub enum CellBuffer { $($id(Vec<$p>)),* }
     }
 }
-with_ct!(cv_enum);
+with_ct!(cb_enum);
 
-impl CellBuffer {
-    pub fn new<T: CellEncoding>(data: Vec<T>) -> Self {
+impl CellBuffer {}
+
+impl BufferOps for CellBuffer {
+    /// Construct a [`CellBuffer`] from a `Vec<T>`.
+    fn from_vec<T: CellEncoding>(data: Vec<T>) -> Self {
         data.into()
     }
 
-    pub fn defaults(len: usize, ct: CellType) -> Self {
+    /// Construct a [`CellBuffer`] of given `len` length and `ct` `CellType`
+    ///
+    /// All cells will be filled with the `CellType`'s corresponding default value.
+    fn with_defaults(len: usize, ct: CellType) -> Self {
         macro_rules! empty {
             ( $(($id:ident, $p:ident)),*) => {
                 match ct {
-                    $(CellType::$id => Self::new(vec![$p::default(); len]),)*
+                    $(CellType::$id => Self::from_vec(vec![$p::default(); len]),)*
                 }
             };
         }
@@ -36,11 +41,11 @@ impl CellBuffer {
     }
 
     /// Create a buffer of size `len` with all values `value`.
-    pub fn fill(value: CellValue, len: usize) -> Self {
+    fn fill(value: CellValue, len: usize) -> Self {
         macro_rules! empty {
             ( $(($id:ident, $p:ident)),*) => {
                 match value.cell_type() {
-                    $(CellType::$id => Self::new::<$p>(vec![value.get().unwrap(); len]),)*
+                    $(CellType::$id => Self::from_vec::<$p>(vec![value.get().unwrap(); len]),)*
                 }
             };
         }
@@ -50,13 +55,13 @@ impl CellBuffer {
     /// Fill a buffer of size `len` with values from a closure.
     ///
     /// First parameter of the closure is the current index.  
-    pub fn fill_with<T: CellEncoding>(len: usize, f: fn(usize) -> T) -> Self {
+    fn fill_with<T: CellEncoding>(len: usize, f: fn(usize) -> T) -> Self {
         let v: Vec<T> = (0..len).map(f).collect();
-        Self::new(v)
+        Self::from_vec(v)
     }
 
     /// Get the length of the buffer.
-    pub fn len(&self) -> usize {
+    fn len(&self) -> usize {
         macro_rules! len {
             ( $(($id:ident, $_p:ident)),*) => {
                 match self {
@@ -68,12 +73,12 @@ impl CellBuffer {
     }
 
     /// Determine if the buffer has zero values in it.
-    pub fn is_empty(&self) -> bool {
+    fn is_empty(&self) -> bool {
         self.len() == 0
     }
 
     /// Get the cell type of the encoded values.
-    pub fn cell_type(&self) -> CellType {
+    fn cell_type(&self) -> CellType {
         macro_rules! ct {
             ( $(($id:ident, $_p:ident)),*) => {
                 match self {
@@ -85,7 +90,7 @@ impl CellBuffer {
     }
 
     /// Panics of `idx` is outside of `[0, len())`.
-    pub fn get(&self, idx: usize) -> CellValue {
+    fn get(&self, idx: usize) -> CellValue {
         macro_rules! get {
             ( $(($id:ident, $_p:ident)),*) => {
                 match self {
@@ -96,7 +101,7 @@ impl CellBuffer {
         with_ct!(get)
     }
 
-    pub fn put(&mut self, idx: usize, value: CellValue) -> Result<()> {
+    fn put(&mut self, idx: usize, value: CellValue) -> Result<()> {
         let value = value.convert(self.cell_type())?;
         macro_rules! put {
             ( $(($id:ident, $_p:ident)),*) => {
@@ -110,15 +115,19 @@ impl CellBuffer {
         Ok(())
     }
 
-    pub fn convert(&self, cell_type: CellType) -> Result<Self> {
+    /// Create a new [`CellBuffer`] whereby all [`CellValue`]s are converted to `cell_type`.
+    ///
+    /// Returns `Ok(CellBuffer)` if conversion is possible, and `Err(Error)` if
+    /// contained values cannot fit in `cell_type` without clamping.
+    fn convert(&self, cell_type: CellType) -> Result<Self> {
+        if cell_type == self.cell_type() {
+            return Ok(self.clone());
+        }
+
         let err = || Error::NarrowingError { src: self.cell_type(), dst: cell_type };
 
         if !self.cell_type().can_fit_into(cell_type) {
             return Err(err());
-        }
-
-        if cell_type == self.cell_type() {
-            return Ok(self.clone());
         }
 
         let r: CellBuffer = self
@@ -129,13 +138,14 @@ impl CellBuffer {
         Ok(r)
     }
 
-    pub fn minmax(&self) -> (CellValue, CellValue) {
+    fn min_max(&self) -> (CellValue, CellValue) {
         let init = (self.cell_type().max(), self.cell_type().min());
         self.into_iter()
             .fold(init, |(amin, amax), v| (amin.min(v), amax.max(v)))
     }
 
-    pub fn to_vec<T: CellEncoding>(&self) -> Result<Vec<T>> {
+    /// Convert `self` into a `Vec<T>`.
+    fn to_vec<T: CellEncoding>(self) -> Result<Vec<T>> {
         let r = self.convert(T::cell_type())?;
         macro_rules! to_vec {
             ( $(($id:ident, $_p:ident)),*) => {
@@ -150,47 +160,24 @@ impl CellBuffer {
 
 impl Debug for CellBuffer {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        use crate::Elided;
         let basename = self.cell_type().to_string();
-
-        fn render_values<T: ToString>(values: &Vec<T>) -> String {
-            if values.len() > 10 {
-                let values = values.as_slice();
-                let mut front = values[values.len() - 5..]
-                    .iter()
-                    .map(ToString::to_string)
-                    .collect::<Vec<_>>();
-                front.push(String::from("..."));
-                values[..5]
-                    .iter()
-                    .map(ToString::to_string)
-                    .for_each(|s| front.push(s));
-                front.join(", ")
-            } else {
-                values
-                    .iter()
-                    .map(ToString::to_string)
-                    .collect::<Vec<_>>()
-                    .join(", ")
-            }
-        }
         macro_rules! render {
-            ( $(($id:ident, $_p:ident)),*) => {
+            ( $(($id:ident, $_p:ident)),*) => {{
+                f.write_fmt(format_args!("{basename}CellBuffer("))?;
                 match self {
-                    $(CellBuffer::$id(b) => render_values(b),)*
-                }
-            }
+                    $(CellBuffer::$id(b) => f.write_fmt(format_args!("{:?}", Elided(b)))?,)*
+                };
+                f.write_str(")")
+            }}
         }
-
-        let values = with_ct!(render);
-        f.debug_struct(&format!("{basename}CellBuffer"))
-            .field("values", &values)
-            .finish()
+        with_ct!(render)
     }
 }
 
 impl<C: CellEncoding> FromIterator<C> for CellBuffer {
     fn from_iter<T: IntoIterator<Item = C>>(iter: T) -> Self {
-        Self::new(iter.into_iter().collect())
+        Self::from_vec(iter.into_iter().collect())
     }
 }
 
@@ -271,25 +258,50 @@ impl Iterator for CellBufferIterator<'_> {
     }
 }
 
+impl<C: CellEncoding> TryFrom<CellBuffer> for Vec<C> {
+    type Error = Error;
+
+    fn try_from(value: CellBuffer) -> Result<Self> {
+        value.to_vec()
+    }
+}
+
 pub(crate) mod ops {
-    use crate::CellBuffer;
+    use crate::{CellBuffer, CellValue};
     use std::ops::{Add, Div, Mul, Neg, Sub};
 
     macro_rules! cb_bin_op {
         ($trt:ident, $mth:ident, $op:tt) => {
+            // Both borrows.
             impl $trt for &CellBuffer {
                 type Output = CellBuffer;
                 fn $mth(self, rhs: Self) -> Self::Output {
                     self.into_iter().zip(rhs.into_iter()).map(|(l, r)| l $op r).collect()
                 }
             }
+            // Both owned/consumed
             impl $trt for CellBuffer {
                 type Output = CellBuffer;
                 fn $mth(self, rhs: Self) -> Self::Output {
                     $trt::$mth(&self, &rhs)
                 }
             }
-
+            // RHS borrow
+            impl $trt<&CellBuffer> for CellBuffer {
+                type Output = CellBuffer;
+                fn $mth(self, rhs: &CellBuffer) -> Self::Output {
+                    $trt::$mth(&self, &rhs)
+                }
+            }
+            // RHS scalar
+            // TODO: figure out how to implement LHS scalar, avoiding orphan rule.
+            impl <R> $trt<R> for CellBuffer where R: Into<CellValue> {
+                type Output = CellBuffer;
+                fn $mth(self, rhs: R) -> Self::Output {
+                    let r: CellValue = rhs.into();
+                    self.into_iter().map(|l | l $op r).collect()
+                }
+            }
         }
     }
     cb_bin_op!(Add, add, +);
@@ -327,7 +339,7 @@ mod danger {
 
 #[cfg(test)]
 mod tests {
-    use crate::{with_ct, CellBuffer, CellType, CellValue};
+    use crate::{with_ct, BufferOps, CellBuffer, CellType, CellValue};
 
     fn bigger(start: CellType) -> impl Iterator<Item = CellType> {
         CellType::iter().filter(move |ct| start.can_fit_into(*ct))
@@ -338,7 +350,7 @@ mod tests {
         macro_rules! test {
             ($( ($id:ident, $p:ident) ),*) => {
                 $({
-                    let cv = CellBuffer::defaults(3, CellType::$id);
+                    let cv = CellBuffer::with_defaults(3, CellType::$id);
                     assert_eq!(cv.len(), 3);
                     assert_eq!(cv.get(0), CellValue::new(<$p>::default()));
                 })*};
@@ -367,7 +379,7 @@ mod tests {
             ($( ($id:ident, $p:ident) ),*) => {
                 $({
                     let v = vec![<$p>::default(); 3];
-                    let buf = CellBuffer::new(v.clone());
+                    let buf = CellBuffer::from_vec(v.clone());
                     let r = buf.to_vec::<$p>().unwrap();
                     assert_eq!(r, v);
                 })*
@@ -378,13 +390,13 @@ mod tests {
 
     #[test]
     fn minmax() {
-        let buf = CellBuffer::new(vec![-1.0, 3.0, 2000.0, -5555.5]);
-        let (min, max) = buf.minmax();
+        let buf = CellBuffer::from_vec(vec![-1.0, 3.0, 2000.0, -5555.5]);
+        let (min, max) = buf.min_max();
         assert_eq!(min, CellValue::Float64(-5555.5));
         assert_eq!(max, CellValue::Float64(2000.0));
 
-        let buf = CellBuffer::new(vec![1u8, 3u8, 200u8, 0u8]);
-        let (min, max) = buf.minmax();
+        let buf = CellBuffer::from_vec(vec![1u8, 3u8, 200u8, 0u8]);
+        let (min, max) = buf.min_max();
         assert_eq!(min, CellValue::UInt8(0));
         assert_eq!(max, CellValue::UInt8(200));
     }
@@ -430,7 +442,7 @@ mod tests {
     #[test]
     fn convert() {
         for ct in CellType::iter() {
-            let buf = CellBuffer::defaults(3, ct);
+            let buf = CellBuffer::with_defaults(3, ct);
             for target in bigger(ct) {
                 let r = buf.convert(target);
                 assert!(r.is_ok(), "{ct} vs {target}");
@@ -459,8 +471,8 @@ mod tests {
     fn binary() {
         for lhs_ct in CellType::iter() {
             let lhs_val = lhs_ct.one();
-            let lhs = CellBuffer::fill(lhs_val, 3);
             for rhs_ct in CellType::iter() {
+                let lhs = CellBuffer::fill(lhs_val, 3);
                 let rhs_val = rhs_ct.one() + rhs_ct.one();
                 let rhs = CellBuffer::fill(rhs_val, 3);
                 assert_eq!((&lhs + &rhs).get(1), lhs_val + rhs_val);
@@ -471,7 +483,12 @@ mod tests {
                 assert_eq!((&rhs * &lhs).get(1), rhs_val * lhs_val);
                 assert_eq!((&lhs / &rhs).get(1), lhs_val / rhs_val);
                 assert_eq!((&rhs / &lhs).get(1), rhs_val / lhs_val);
+                // Consuming (non-borrow) case
+                assert_eq!((rhs / lhs).get(1), rhs_val / lhs_val);
             }
         }
     }
+
+    #[test]
+    fn scalar() {}
 }

@@ -10,7 +10,7 @@ use std::fmt::Debug;
 ///
 /// For example, [`f64`] is [`CellEncoding`] through [`CellType::Float64`],
 /// but [`isize`] is not `CellEncoding`.
-pub trait CellEncoding: Copy + Debug + Default + Zero + One {
+pub trait CellEncoding: Copy + Debug + Default + Zero + One + PartialEq {
     /// Returns the [`CellType`] covering `Self`.
     fn cell_type() -> CellType;
     /// Converts `self` into a [`CellValue`].
