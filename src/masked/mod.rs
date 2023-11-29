@@ -1,5 +1,10 @@
-use crate::mask::Mask;
-use crate::{with_ct, BufferOps, CellBuffer, CellEncoding, CellType, CellValue, NoData};
+mod mask;
+mod nodata;
+
+pub use mask::*;
+pub use nodata::*;
+
+use crate::{with_ct, BufferOps, CellBuffer, CellEncoding, CellType, CellValue};
 use serde::{Deserialize, Serialize};
 use std::fmt::{Debug, Formatter};
 
@@ -208,8 +213,7 @@ impl Debug for MaskedCellBuffer {
 
 #[cfg(test)]
 mod tests {
-    use crate::mask::Mask;
-    use crate::{BufferOps, CellBuffer, MaskedCellBuffer};
+    use crate::{BufferOps, CellBuffer, Mask, MaskedCellBuffer};
 
     #[test]
     fn ctor() {

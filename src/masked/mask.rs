@@ -4,6 +4,7 @@ use std::fmt::{Debug, Formatter};
 use std::ops::{BitAnd, BitOr, Index, IndexMut, Not};
 use std::vec::IntoIter;
 
+/// Encodes the bit-mask for [`MaskedCellBuffer`][super::MaskedCellBuffer]
 #[derive(Clone, PartialEq, PartialOrd, Ord, Eq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Mask(Vec<bool>);
@@ -51,6 +52,13 @@ impl Not for Mask {
     fn not(mut self) -> Self::Output {
         self.0.iter_mut().for_each(|b| *b = !*b);
         self
+    }
+}
+
+impl Not for &Mask {
+    type Output = Mask;
+    fn not(self) -> Self::Output {
+        Mask(self.0.iter().map(|b| !*b).collect())
     }
 }
 
@@ -118,7 +126,8 @@ impl IntoIterator for Mask {
 
 #[cfg(test)]
 mod tests {
-    use crate::mask::Mask;
+    use crate::Mask;
+
     #[test]
     fn set() {
         let mut m = Mask::fill(3, true);
@@ -131,10 +140,12 @@ mod tests {
     fn not() {
         let t = Mask::fill(4, true);
         let f = Mask::fill(4, false);
+        assert_eq!(!&t, f);
         assert_eq!(!t, f);
 
         let m = Mask::new(vec![true, false, true, false]);
         let r = Mask::new(vec![false, true, false, true]);
+        assert_eq!(!&m, r);
         assert_eq!(!m, r);
     }
 

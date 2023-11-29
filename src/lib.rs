@@ -53,10 +53,8 @@ mod buffer;
 mod ctype;
 mod encoding;
 pub mod error;
-mod mask;
 #[cfg(feature = "masked")]
 mod masked;
-mod nodata;
 mod value;
 
 pub use buffer::ops::*;
@@ -65,8 +63,6 @@ pub use ctype::*;
 pub use encoding::*;
 #[cfg(feature = "masked")]
 pub use masked::*;
-#[cfg(feature = "masked")]
-pub use nodata::*;
 use std::fmt::{Debug, Formatter};
 pub use value::ops::*;
 pub use value::*;
