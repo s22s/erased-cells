@@ -53,6 +53,7 @@ mod buffer;
 mod ctype;
 mod encoding;
 pub mod error;
+mod mask;
 #[cfg(feature = "masked")]
 mod masked;
 mod nodata;
@@ -121,12 +122,15 @@ pub trait BufferOps {
     fn with_defaults(len: usize, ct: CellType) -> Self;
 
     /// Create a buffer of size `len` with all values `value`.
-    fn fill(value: CellValue, len: usize) -> Self;
+    fn fill(len: usize, value: CellValue) -> Self;
 
     /// Fill a buffer of size `len` with values from a closure.
     ///
     /// First parameter of the closure is the current index.  
-    fn fill_with<T: CellEncoding>(len: usize, f: fn(usize) -> T) -> Self;
+    fn fill_with<T, F>(len: usize, f: F) -> Self
+    where
+        T: CellEncoding,
+        F: Fn(usize) -> T;
 
     /// Get the length of the buffer.
     fn len(&self) -> usize;
@@ -142,7 +146,7 @@ pub trait BufferOps {
     /// Get the [`CellValue`] at index `idx`.
     ///
     /// Panics of `idx` is outside of `[0, len())`.
-    fn get(&self, idx: usize) -> CellValue;
+    fn get(&self, index: usize) -> CellValue;
 
     /// Store `value` at position `idx`.
     fn put(&mut self, idx: usize, value: CellValue) -> error::Result<()>;

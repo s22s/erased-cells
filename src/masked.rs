@@ -1,35 +1,7 @@
-use crate::{with_ct, BufferOps, CellBuffer, CellEncoding, CellType, CellValue, Elided, NoData};
+use crate::mask::Mask;
+use crate::{with_ct, BufferOps, CellBuffer, CellEncoding, CellType, CellValue, NoData};
 use serde::{Deserialize, Serialize};
 use std::fmt::{Debug, Formatter};
-use std::vec::IntoIter;
-
-#[derive(Clone, PartialEq, PartialOrd)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-pub struct Mask(Vec<bool>);
-
-impl Mask {
-    pub fn fill(value: bool, len: usize) -> Self {
-        Self(vec![value; len])
-    }
-    pub fn len(&self) -> usize {
-        self.0.len()
-    }
-}
-
-impl Debug for Mask {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.write_fmt(format_args!("Mask({:?})", Elided(&self.0)))
-    }
-}
-
-impl IntoIterator for Mask {
-    type Item = bool;
-    type IntoIter = IntoIter<bool>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.0.into_iter()
-    }
-}
 
 /// MaskedCellBuffer enum constructor.
 macro_rules! cb_enum {
@@ -111,6 +83,18 @@ impl MaskedCellBuffer {
         with_ct!(mask)
     }
 
+    pub fn get_masked(&self, index: usize) -> Option<CellValue> {
+        if self.mask().get(index) {
+            Some(self.buffer().get(index))
+        } else {
+            None
+        }
+    }
+
+    pub fn get_with_mask(&self, index: usize) -> (CellValue, bool) {
+        (self.buffer().get(index), self.mask().get(index))
+    }
+
     /// Separate underlying buffer and mask from `self`.
     // TODO: Better name?
     pub fn take(self) -> (CellBuffer, Mask) {
@@ -131,7 +115,7 @@ impl MaskedCellBuffer {
         no_data: NoData<T>,
     ) -> crate::error::Result<Vec<T>> {
         let (buf, mask) = self.take();
-        let out = buf.to_vec()?;
+        let out = buf.to_vec::<T>()?;
         if let Some(no_data) = no_data.value() {
             Ok(out
                 .into_iter()
@@ -147,25 +131,29 @@ impl MaskedCellBuffer {
 impl BufferOps for MaskedCellBuffer {
     fn from_vec<T: CellEncoding>(data: Vec<T>) -> Self {
         let buffer = CellBuffer::from_vec(data);
-        let mask = Mask::fill(true, buffer.len());
+        let mask = Mask::fill(buffer.len(), true);
         Self::new(buffer, mask)
     }
 
     fn with_defaults(len: usize, ct: CellType) -> Self {
         let buffer = CellBuffer::with_defaults(len, ct);
-        let mask = Mask::fill(true, len);
+        let mask = Mask::fill(len, true);
         Self::new(buffer, mask)
     }
 
-    fn fill(value: CellValue, len: usize) -> Self {
-        let buffer = CellBuffer::fill(value, len);
-        let mask = Mask::fill(true, len);
+    fn fill(len: usize, value: CellValue) -> Self {
+        let buffer = CellBuffer::fill(len, value);
+        let mask = Mask::fill(len, true);
         Self::new(buffer, mask)
     }
 
-    fn fill_with<T: CellEncoding>(len: usize, f: fn(usize) -> T) -> Self {
+    fn fill_with<T, F>(len: usize, f: F) -> Self
+    where
+        T: CellEncoding,
+        F: Fn(usize) -> T,
+    {
         let buffer = CellBuffer::fill_with(len, f);
-        let mask = Mask::fill(true, len);
+        let mask = Mask::fill(len, true);
         Self::new(buffer, mask)
     }
 
@@ -177,8 +165,8 @@ impl BufferOps for MaskedCellBuffer {
         self.buffer().cell_type()
     }
 
-    fn get(&self, idx: usize) -> CellValue {
-        self.buffer().get(idx)
+    fn get(&self, index: usize) -> CellValue {
+        self.buffer().get(index)
     }
 
     fn put(&mut self, idx: usize, value: CellValue) -> crate::error::Result<()> {
@@ -220,11 +208,14 @@ impl Debug for MaskedCellBuffer {
 
 #[cfg(test)]
 mod tests {
-    use crate::{BufferOps, MaskedCellBuffer};
+    use crate::mask::Mask;
+    use crate::{BufferOps, CellBuffer, MaskedCellBuffer};
 
     #[test]
     fn ctor() {
-        let mb = MaskedCellBuffer::fill_with(3, |i| i as u8 + 1);
-        println!("{mb:#?}")
+        let filler = |i| i as u8 + 1;
+        let m = MaskedCellBuffer::fill_with(3, filler);
+        let r = MaskedCellBuffer::new(CellBuffer::fill_with(3, |i| filler(i)), Mask::fill(3, true));
+        assert_eq!(m, r);
     }
 }

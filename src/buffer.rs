@@ -41,7 +41,7 @@ impl BufferOps for CellBuffer {
     }
 
     /// Create a buffer of size `len` with all values `value`.
-    fn fill(value: CellValue, len: usize) -> Self {
+    fn fill(len: usize, value: CellValue) -> Self {
         macro_rules! empty {
             ( $(($id:ident, $p:ident)),*) => {
                 match value.cell_type() {
@@ -55,7 +55,11 @@ impl BufferOps for CellBuffer {
     /// Fill a buffer of size `len` with values from a closure.
     ///
     /// First parameter of the closure is the current index.  
-    fn fill_with<T: CellEncoding>(len: usize, f: fn(usize) -> T) -> Self {
+    fn fill_with<T, F>(len: usize, f: F) -> Self
+    where
+        T: CellEncoding,
+        F: Fn(usize) -> T,
+    {
         let v: Vec<T> = (0..len).map(f).collect();
         Self::from_vec(v)
     }
@@ -89,12 +93,14 @@ impl BufferOps for CellBuffer {
         with_ct!(ct)
     }
 
-    /// Panics of `idx` is outside of `[0, len())`.
-    fn get(&self, idx: usize) -> CellValue {
+    /// Get the [`CellValue`] at the given `index`.
+    ///
+    /// Note: Panics of `index` is outside of `[0, len())`.
+    fn get(&self, index: usize) -> CellValue {
         macro_rules! get {
             ( $(($id:ident, $_p:ident)),*) => {
                 match self {
-                    $(CellBuffer::$id(b) => CellValue::$id(b[idx]),)*
+                    $(CellBuffer::$id(b) => CellValue::$id(b[index]),)*
                 }
             };
         }
@@ -364,7 +370,7 @@ mod tests {
         macro_rules! test {
             ($( ($id:ident, $p:ident) ),*) => {
                 $({
-                    let mut cv = CellBuffer::fill(<$p>::default().into(), 3);
+                    let mut cv = CellBuffer::fill(3, <$p>::default().into());
                     let one = CellValue::new(<$p>::one());
                     cv.put(1, one).expect("Put one");
                     assert_eq!(cv.get(1), one.convert(CellType::$id).unwrap());
@@ -433,9 +439,9 @@ mod tests {
 
     #[test]
     fn debug() {
-        let b = CellBuffer::fill(37.into(), 5);
+        let b = CellBuffer::fill(5, 37.into());
         assert!(format!("{b:?}").starts_with("Int32CellBuffer"));
-        let b = CellBuffer::fill(37.into(), 15);
+        let b = CellBuffer::fill(15, 37.into());
         assert!(format!("{b:?}").contains("..."));
     }
 
@@ -459,7 +465,7 @@ mod tests {
         macro_rules! test {
             ($( ($id:ident, $p:ident) ),*) => {$({
                 let one: CellValue = <$p>::one().into();
-                let buf = -CellBuffer::fill(one, 3);
+                let buf = -CellBuffer::fill(3, one);
                 assert_eq!(buf.get(0), -one);
             })*};
         }
@@ -472,9 +478,9 @@ mod tests {
         for lhs_ct in CellType::iter() {
             let lhs_val = lhs_ct.one();
             for rhs_ct in CellType::iter() {
-                let lhs = CellBuffer::fill(lhs_val, 3);
+                let lhs = CellBuffer::fill(3, lhs_val);
                 let rhs_val = rhs_ct.one() + rhs_ct.one();
-                let rhs = CellBuffer::fill(rhs_val, 3);
+                let rhs = CellBuffer::fill(3, rhs_val);
                 assert_eq!((&lhs + &rhs).get(1), lhs_val + rhs_val);
                 assert_eq!((&rhs + &lhs).get(1), rhs_val + lhs_val);
                 assert_eq!((&lhs - &rhs).get(1), lhs_val - rhs_val);
