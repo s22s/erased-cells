@@ -1,0 +1,3 @@
+(function() {var implementors = {
+"erased_cells":[["impl&lt;C: <a class=\"trait\" href=\"erased_cells/trait.CellEncoding.html\" title=\"trait erased_cells::CellEncoding\">CellEncoding</a>&gt; <a class=\"trait\" href=\"https://doc.rust-lang.org/1.74.0/core/convert/trait.TryFrom.html\" title=\"trait core::convert::TryFrom\">TryFrom</a>&lt;<a class=\"enum\" href=\"erased_cells/enum.CellBuffer.html\" title=\"enum erased_cells::CellBuffer\">CellBuffer</a>&gt; for <a class=\"struct\" href=\"https://doc.rust-lang.org/1.74.0/alloc/vec/struct.Vec.html\" title=\"struct alloc::vec::Vec\">Vec</a>&lt;C&gt;"]]
+};if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()
