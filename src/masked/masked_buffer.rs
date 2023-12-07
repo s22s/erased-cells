@@ -22,6 +22,17 @@ impl MaskedCellBuffer {
         Self(buffer, mask)
     }
 
+    pub fn fill_with_mask_via<T, F, M>(len: usize, v: F, m: M) -> Self
+    where
+        T: CellEncoding,
+        F: Fn(usize) -> T,
+        M: Fn(usize) -> bool,
+    {
+        let buffer = CellBuffer::fill_via(len, v);
+        let mask = Mask::fill_via(len, m);
+        Self::new(buffer, mask)
+    }
+
     pub fn buffer(&self) -> &CellBuffer {
         &self.0
     }
@@ -123,7 +134,14 @@ impl BufferOps for MaskedCellBuffer {
     }
 
     fn min_max(&self) -> (CellValue, CellValue) {
-        self.buffer().min_max()
+        let init = (self.cell_type().max(), self.cell_type().min());
+        self.into_iter().fold(init, |(amin, amax), (v, m)| {
+            if m {
+                (amin.min(v), amax.max(v))
+            } else {
+                (amin, amax)
+            }
+        })
     }
 
     /// Converts `self` to `Vec<T>` with default NoData value.
@@ -170,6 +188,51 @@ impl From<CellBuffer> for MaskedCellBuffer {
 impl<C: CellEncoding> FromIterator<C> for MaskedCellBuffer {
     fn from_iter<T: IntoIterator<Item = C>>(iter: T) -> Self {
         Self::from_vec(iter.into_iter().collect())
+    }
+}
+
+impl<C: CellEncoding> FromIterator<(C, bool)> for MaskedCellBuffer {
+    fn from_iter<T: IntoIterator<Item = (C, bool)>>(iter: T) -> Self {
+        let (data, mask): (CellBuffer, Mask) = iter.into_iter().unzip();
+        Self::new(data, mask)
+    }
+}
+
+impl<C: CellEncoding> Extend<(C, bool)> for MaskedCellBuffer {
+    fn extend<T: IntoIterator<Item = (C, bool)>>(&mut self, iter: T) {
+        for (v, m) in iter {
+            self.buffer_mut().extend(Some(v));
+            self.mask_mut().extend(Some(m));
+        }
+    }
+}
+
+impl<'buf> IntoIterator for &'buf MaskedCellBuffer {
+    type Item = (CellValue, bool);
+    type IntoIter = MaskedCellBufferIterator<'buf>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        MaskedCellBufferIterator { buf: self, idx: 0, len: self.len() }
+    }
+}
+
+pub struct MaskedCellBufferIterator<'buf> {
+    buf: &'buf MaskedCellBuffer,
+    idx: usize,
+    len: usize,
+}
+
+impl Iterator for MaskedCellBufferIterator<'_> {
+    type Item = (CellValue, bool);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.idx >= self.len {
+            None
+        } else {
+            let r = self.buf.get_with_mask(self.idx);
+            self.idx += 1;
+            Some(r)
+        }
     }
 }
 
@@ -229,14 +292,13 @@ mod ops {
     impl Neg for &MaskedCellBuffer {
         type Output = MaskedCellBuffer;
         fn neg(self) -> Self::Output {
-            //self.into_iter().map(|v| -v).collect()
-            todo!()
+            Self::Output::new(self.buffer().neg(), self.mask().clone())
         }
     }
     impl Neg for MaskedCellBuffer {
         type Output = MaskedCellBuffer;
         fn neg(self) -> Self::Output {
-            Neg::neg(&self)
+            Self::Output::new(self.buffer().neg(), self.1)
         }
     }
 }
@@ -260,44 +322,59 @@ mod tests {
 
     #[test]
     fn get_masked() {
-        let mask = Mask::fill_via(9, masker);
-        let buf = MaskedCellBuffer::new(CellBuffer::fill_via(9, filler), mask);
+        let buf = MaskedCellBuffer::fill_with_mask_via(9, filler, masker);
         assert_eq!(buf.get_masked(4), Some(4.into()));
         assert_eq!(buf.get_masked(5), None);
     }
 
     #[test]
+    fn extend() {
+        let mut buf = MaskedCellBuffer::fill(3, 0.into());
+        buf.extend([(1, false)]);
+        assert_eq!(buf.get_masked(0), Some(0.into()));
+        assert_eq!(buf.get_masked(3), None);
+    }
+
+    #[test]
+    fn unary() {
+        let mbuf = MaskedCellBuffer::fill_with_mask_via(9, filler, masker);
+        let r = -mbuf;
+        let v = r.to_vec_with_nodata::<i16>(NoData::Default).unwrap();
+
+        #[rustfmt::skip]
+        assert_eq!(
+            v,
+            vec![0, i16::MIN, -2, i16::MIN, -4, i16::MIN, -6, i16::MIN, -8]
+        );
+    }
+
+    #[test]
+    fn min_max() {
+        let mbuf = MaskedCellBuffer::fill_with_mask_via(9, filler, |i| i != 0 && i != 8);
+        assert_eq!(mbuf.min_max(), (1u8.into(), 7u8.into()));
+    }
+
+    #[test]
     fn scalar() {
         // All `true` case
-        let mask = Mask::fill(9, true);
-        let buf = CellBuffer::fill_via(9, filler);
-        let mbuf = MaskedCellBuffer::new(buf.clone(), mask);
+        let mbuf = MaskedCellBuffer::fill_with_mask_via(9, filler, |_| true);
         let r = mbuf * 2.0;
-        assert_eq!(r, (buf * 2.0).into());
+        let expected = CellBuffer::fill_via(9, filler) * 2.0;
+        assert_eq!(r, expected.clone().into());
 
-        // Alternate mask case
-        let mask = Mask::fill_via(9, masker);
-        let buf = CellBuffer::fill_via(9, filler);
-        let mbuf = MaskedCellBuffer::new(buf.clone(), mask);
+        // Alternating mask case
+        let mbuf = MaskedCellBuffer::fill_with_mask_via(9, filler, masker);
         let r = mbuf * 2.0;
-        assert_ne!(r, (buf * 2.0).into());
+        assert_ne!(r, expected.into());
 
         let v = r
             .to_vec_with_nodata::<f64>(NoData::Value(f64::MIN))
             .unwrap();
+
+        #[rustfmt::skip]
         assert_eq!(
             v,
-            vec![
-                0.0,
-                f64::MIN,
-                4.0,
-                f64::MIN,
-                8.0,
-                f64::MIN,
-                12.0,
-                f64::MIN,
-                16.0
-            ]
+            vec![0.0, f64::MIN, 4.0, f64::MIN, 8.0, f64::MIN, 12.0, f64::MIN, 16.0]
         );
     }
 }

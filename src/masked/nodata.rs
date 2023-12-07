@@ -38,7 +38,7 @@ impl<T: CellEncoding> NoData<T> {
 
 #[cfg(test)]
 mod tests {
-    use crate::NoData;
+    use crate::{with_ct, NoData};
 
     #[test]
     fn has_value() {
@@ -46,5 +46,15 @@ mod tests {
         assert_eq!(NoData::<u8>::Default.value(), Some(<u8>::MIN));
         assert!(NoData::<f32>::Default.value().unwrap().is_nan());
         assert_eq!(NoData::new(6u16).value(), Some(6u16));
+    }
+
+    #[test]
+    fn defaults() {
+        macro_rules! test {
+            ($( ($id:ident, $p:ident) ),*) => {
+                $(assert!(NoData::<$p>::Default.value().is_some());)*
+            }
+        }
+        with_ct!(test);
     }
 }

@@ -94,7 +94,6 @@ impl CellValue {
                 match cell_type {
                     $(
                       CellType::$id => Ok(self.[<to_ $p>]().ok_or_else(err)?.into_cell_value()),
-
                     )*
                 }
             }}

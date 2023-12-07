@@ -2,12 +2,17 @@
  * Copyright (c) 2023. Astraea, Inc. All rights reserved.
  */
 
-pub use self::ops::*;
-use crate::error::{Error, Result};
-use crate::{with_ct, BufferOps, CellEncoding, CellType, CellValue};
+use std::fmt::{Debug, Formatter};
+
+use num_traits::ToPrimitive;
+use paste::paste;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
-use std::fmt::{Debug, Formatter};
+
+use crate::error::{Error, Result};
+use crate::{with_ct, BufferOps, CellEncoding, CellType, CellValue};
+
+pub use self::ops::*;
 
 /// CellBuffer enum constructor.
 macro_rules! cb_enum {
@@ -182,6 +187,27 @@ impl Debug for CellBuffer {
     }
 }
 
+impl Default for CellBuffer {
+    fn default() -> Self {
+        CellBuffer::Int8(Vec::default())
+    }
+}
+
+impl<C: CellEncoding> Extend<C> for CellBuffer {
+    fn extend<T: IntoIterator<Item = C>>(&mut self, iter: T) {
+        macro_rules! render {
+            ( $(($id:ident, $p:ident)),*) => { paste! {
+                match self {
+                    $(
+                    CellBuffer::$id(b) => b.extend(iter.into_iter().map(|c| c.into_cell_value().[<to_ $p>]().unwrap())),
+                    )*
+                }
+            }}
+        }
+        with_ct!(render);
+    }
+}
+
 impl<C: CellEncoding> FromIterator<C> for CellBuffer {
     fn from_iter<T: IntoIterator<Item = C>>(iter: T) -> Self {
         Self::from_vec(iter.into_iter().collect())
@@ -274,8 +300,9 @@ impl<C: CellEncoding> TryFrom<CellBuffer> for Vec<C> {
 }
 
 mod ops {
-    use crate::{CellBuffer, CellValue};
     use std::ops::{Add, Div, Mul, Neg, Sub};
+
+    use crate::{CellBuffer, CellValue};
 
     macro_rules! cb_bin_op {
         ($trt:ident, $mth:ident, $op:tt) => {
@@ -381,6 +408,14 @@ mod tests {
     }
 
     #[test]
+    fn extend() {
+        let mut buf = CellBuffer::fill(3, 0.into());
+        buf.extend([1]);
+        assert_eq!(buf.get(0), 0.into());
+        assert_eq!(buf.get(3), 1.into());
+    }
+
+    #[test]
     fn to_vec() {
         macro_rules! test {
             ($( ($id:ident, $p:ident) ),*) => {
@@ -396,7 +431,7 @@ mod tests {
     }
 
     #[test]
-    fn minmax() {
+    fn min_max() {
         let buf = CellBuffer::from_vec(vec![-1.0, 3.0, 2000.0, -5555.5]);
         let (min, max) = buf.min_max();
         assert_eq!(min, CellValue::Float64(-5555.5));

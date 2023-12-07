@@ -3,7 +3,7 @@ docs: ## Build documentation
 	@if [[ ! -d docs ]]; then \
 		git worktree add docs gh-pages; \
 	fi
-	@cargo doc --no-deps && cp -r target/doc/* docs/
+	@cargo doc --no-deps --all-features && cp -r target/doc/* docs/
 	@echo "<meta http-equiv=\"refresh\" content=\"0; url=$(subst -,_,$(NAME))\">" > docs/index.html
 	@touch docs/.nojekyll
 

@@ -5,7 +5,7 @@ use std::ops::{BitAnd, BitOr, Index, IndexMut, Not};
 use std::vec::IntoIter;
 
 /// Encodes the bit-mask for [`MaskedCellBuffer`][super::MaskedCellBuffer]
-#[derive(Clone, PartialEq, PartialOrd, Ord, Eq)]
+#[derive(Default, Clone, PartialEq, PartialOrd, Ord, Eq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Mask(Vec<bool>);
 
@@ -16,7 +16,10 @@ impl Mask {
     pub fn fill(len: usize, value: bool) -> Self {
         Self(vec![value; len])
     }
-    pub fn fill_via(len: usize, f: fn(usize) -> bool) -> Self {
+    pub fn fill_via<F>(len: usize, f: F) -> Self
+    where
+        F: Fn(usize) -> bool,
+    {
         Self((0..len).map(f).collect())
     }
     pub fn len(&self) -> usize {
@@ -33,6 +36,12 @@ impl Mask {
     }
     pub fn all(&self, value: bool) -> bool {
         self.0.iter().all(|b| *b == value)
+    }
+}
+
+impl Extend<bool> for Mask {
+    fn extend<T: IntoIterator<Item = bool>>(&mut self, iter: T) {
+        self.0.extend(iter)
     }
 }
 
