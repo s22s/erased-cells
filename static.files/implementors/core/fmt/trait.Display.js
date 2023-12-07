@@ -1,3 +1,0 @@
-(function() {var implementors = {
-"erased_cells":[["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/1.73.0/core/fmt/trait.Display.html\" title=\"trait core::fmt::Display\">Display</a> for <a class=\"enum\" href=\"erased_cells/error/enum.Error.html\" title=\"enum erased_cells::error::Error\">Error</a>"],["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/1.73.0/core/fmt/trait.Display.html\" title=\"trait core::fmt::Display\">Display</a> for <a class=\"enum\" href=\"erased_cells/enum.CellType.html\" title=\"enum erased_cells::CellType\">CellType</a>"]]
-};if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()
