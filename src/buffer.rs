@@ -2,6 +2,7 @@
  * Copyright (c) 2023. Astraea, Inc. All rights reserved.
  */
 
+pub use self::ops::*;
 use crate::error::{Error, Result};
 use crate::{with_ct, BufferOps, CellEncoding, CellType, CellValue};
 #[cfg(feature = "serde")]
@@ -55,7 +56,7 @@ impl BufferOps for CellBuffer {
     /// Fill a buffer of size `len` with values from a closure.
     ///
     /// First parameter of the closure is the current index.  
-    fn fill_with<T, F>(len: usize, f: F) -> Self
+    fn fill_via<T, F>(len: usize, f: F) -> Self
     where
         T: CellEncoding,
         F: Fn(usize) -> T,
@@ -272,7 +273,7 @@ impl<C: CellEncoding> TryFrom<CellBuffer> for Vec<C> {
     }
 }
 
-pub(crate) mod ops {
+mod ops {
     use crate::{CellBuffer, CellValue};
     use std::ops::{Add, Div, Mul, Neg, Sub};
 
@@ -496,5 +497,9 @@ mod tests {
     }
 
     #[test]
-    fn scalar() {}
+    fn scalar() {
+        let buf = CellBuffer::fill_via(9, |i| i as u8 + 1);
+        let r = buf * 2.0;
+        assert_eq!(r, CellBuffer::fill_via(9, |i| (i as f64 + 1.0) * 2.0));
+    }
 }

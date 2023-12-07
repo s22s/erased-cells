@@ -16,11 +16,14 @@ impl Mask {
     pub fn fill(len: usize, value: bool) -> Self {
         Self(vec![value; len])
     }
-    pub fn fill_with(len: usize, f: fn(usize) -> bool) -> Self {
+    pub fn fill_via(len: usize, f: fn(usize) -> bool) -> Self {
         Self((0..len).map(f).collect())
     }
     pub fn len(&self) -> usize {
         self.0.len()
+    }
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
     }
     pub fn set(&mut self, index: usize, value: bool) {
         self.0[index] = value;
@@ -68,7 +71,7 @@ impl BitAnd for Mask {
         self.0
             .iter_mut()
             .zip(rhs.0.iter())
-            .for_each(|(l, r)| *l = *l & *r);
+            .for_each(|(l, r)| *l &= *r);
         self
     }
 }
@@ -92,7 +95,7 @@ impl BitOr for Mask {
         self.0
             .iter_mut()
             .zip(rhs.0.iter())
-            .for_each(|(l, r)| *l = *l | *r);
+            .for_each(|(l, r)| *l |= *r);
         self
     }
 }
@@ -151,7 +154,7 @@ mod tests {
 
     #[test]
     fn all() {
-        let m = Mask::fill_with(4, |i| i % 2 == 0);
+        let m = Mask::fill_via(4, |i| i % 2 == 0);
         assert!(!m.all(true));
         assert!(!m.all(false));
         let m = Mask::fill(4, true);
@@ -161,8 +164,8 @@ mod tests {
 
     #[test]
     fn and() {
-        let l = Mask::fill_with(4, |i| i % 2 == 0);
-        let r = Mask::fill_with(4, |i| i % 2 != 0);
+        let l = Mask::fill_via(4, |i| i % 2 == 0);
+        let r = Mask::fill_via(4, |i| i % 2 != 0);
         // non-consuming
         assert!((&l & &r).all(false));
         // consuming
@@ -171,8 +174,8 @@ mod tests {
 
     #[test]
     fn or() {
-        let l = Mask::fill_with(4, |i| i % 2 == 0);
-        let r = Mask::fill_with(4, |i| i % 2 != 0);
+        let l = Mask::fill_via(4, |i| i % 2 == 0);
+        let r = Mask::fill_via(4, |i| i % 2 != 0);
         // non-consuming
         assert!((&l | &r).all(true));
         // consuming

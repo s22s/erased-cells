@@ -22,7 +22,7 @@
 //! ```rust
 //! use erased_cells::{CellBuffer, CellType, CellValue, BufferOps};
 //! // Fill a buffer with the `u8` numbers `0..=8`.
-//! let buf1 = CellBuffer::fill_with(9, |i| i as u8);
+//! let buf1 = CellBuffer::fill_via(9, |i| i as u8);
 //!
 //! // `u8` maps to `CellType::UInt8`
 //! assert_eq!(buf1.cell_type(), CellType::UInt8);
@@ -38,7 +38,7 @@
 //! assert_eq!(((max - min + 1) / 2), 4.5.into());
 //!
 //! // Fill another buffer with the `f32` numbers `8..=0`.
-//! let buf2 = CellBuffer::fill_with(9, |i| 8f32 - i as f32);
+//! let buf2 = CellBuffer::fill_via(9, |i| 8f32 - i as f32);
 //! assert_eq!(buf2.cell_type(), CellType::Float32);
 //! assert_eq!(
 //! buf2.min_max(),
@@ -57,7 +57,6 @@ pub mod error;
 mod masked;
 mod value;
 
-pub use buffer::ops::*;
 pub use buffer::*;
 pub use ctype::*;
 pub use encoding::*;
@@ -123,7 +122,7 @@ pub trait BufferOps {
     /// Fill a buffer of size `len` with values from a closure.
     ///
     /// First parameter of the closure is the current index.  
-    fn fill_with<T, F>(len: usize, f: F) -> Self
+    fn fill_via<T, F>(len: usize, f: F) -> Self
     where
         T: CellEncoding,
         F: Fn(usize) -> T;
@@ -189,7 +188,7 @@ impl<T: Debug> Debug for Elided<'_, T> {
             Ok(())
         }
 
-        render(&self.0, f)
+        render(self.0, f)
     }
 }
 
@@ -199,9 +198,9 @@ mod tests {
 
     #[test]
     fn elided() {
-        let s = format!("{:?}", Elided(&vec![1; 3]));
+        let s = format!("{:?}", Elided(&[1; 3]));
         assert_eq!(s, "1, 1, 1");
-        let s = format!("{:?}", Elided(&vec![0; 30]));
+        let s = format!("{:?}", Elided(&[0; 30]));
         assert_eq!(s, "0, 0, 0, 0, 0, ... 0, 0, 0, 0, 0");
     }
 }

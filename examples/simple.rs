@@ -2,7 +2,7 @@ use erased_cells::{BufferOps, CellBuffer, CellType, CellValue};
 
 fn main() {
     // Fill a buffer with the `u8` numbers `0..=8`.
-    let buf1 = CellBuffer::fill_with(9, |i| i as u8);
+    let buf1 = CellBuffer::fill_via(9, |i| i as u8);
 
     // `u8` maps to `CellType::UInt8`
     assert_eq!(buf1.cell_type(), CellType::UInt8);
@@ -18,7 +18,7 @@ fn main() {
     assert_eq!(((max - min + 1) / 2), 4.5.into());
 
     // Fill another buffer with the `f32` numbers `8..=0`.
-    let buf2 = CellBuffer::fill_with(9, |i| 8f32 - i as f32);
+    let buf2 = CellBuffer::fill_via(9, |i| 8f32 - i as f32);
     assert_eq!(buf2.cell_type(), CellType::Float32);
     assert_eq!(
         buf2.min_max(),
