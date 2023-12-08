@@ -2,11 +2,12 @@ use crate::{CellEncoding, CellType};
 
 /// Encodes a no-data value for cells that should be considered invalid
 /// or masked-out of a result.
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Default)]
 pub enum NoData<T: CellEncoding> {
     /// Case where there is no no-data value.
     None,
     /// Case where there the default no-data value should be used.
+    #[default]
     Default,
     /// Case where a specific no-data value is specified.
     Value(T),

@@ -7,7 +7,7 @@ use thiserror::Error as ThisError;
 
 pub type Result<T, E = Error> = std::result::Result<T, E>;
 
-#[derive(ThisError, Debug)]
+#[derive(ThisError, Debug, PartialEq)]
 pub enum Error {
     #[error("Invalid narrowing from cell type {src} to {dst}")]
     NarrowingError { src: CellType, dst: CellType },

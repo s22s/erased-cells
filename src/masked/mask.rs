@@ -10,32 +10,66 @@ use std::vec::IntoIter;
 pub struct Mask(Vec<bool>);
 
 impl Mask {
+    /// Create a new mask containing `values`.
     pub fn new(values: Vec<bool>) -> Self {
         Self(values)
     }
+
+    /// Create a mask of size `len` with all values set to `value`.
     pub fn fill(len: usize, value: bool) -> Self {
         Self(vec![value; len])
     }
+
+    /// Create a mask of size `len` were each value is determined by
+    /// the value returned by `f`, which is called with the index position as an
+    /// argument.
     pub fn fill_via<F>(len: usize, f: F) -> Self
     where
         F: Fn(usize) -> bool,
     {
         Self((0..len).map(f).collect())
     }
+
+    /// Get the number of mask elements.
     pub fn len(&self) -> usize {
         self.0.len()
     }
+
+    /// Returns `true` if `self.len() == 0`.
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }
-    pub fn set(&mut self, index: usize, value: bool) {
+
+    /// Set the mask value at position `index` to `value`.
+    ///
+    /// # Panics
+    /// Will panic if `index` >= `self.len()`.
+    pub fn put(&mut self, index: usize, value: bool) {
         self.0[index] = value;
     }
+
+    /// Get the mask value at position `index`.
+    ///
+    /// # Panics
+    /// Will panic if `index` >= `self.len()`.
     pub fn get(&self, index: usize) -> bool {
         self.0[index]
     }
+
+    /// Determine if all mask values equal `value`.
     pub fn all(&self, value: bool) -> bool {
         self.0.iter().all(|b| *b == value)
+    }
+
+    /// Returns a tuple of representing counts of `(data, nodata)`.
+    pub fn counts(&self) -> (usize, usize) {
+        self.0.iter().fold((0, 0), |(data, nodata), m| {
+            if *m {
+                (data + 1, nodata)
+            } else {
+                (data, nodata + 1)
+            }
+        })
     }
 }
 
@@ -141,9 +175,19 @@ mod tests {
     use crate::Mask;
 
     #[test]
+    fn counts() {
+        let m = Mask::fill(3, true);
+        assert_eq!(m.counts(), (3, 0));
+        let m = Mask::fill(3, false);
+        assert_eq!(m.counts(), (0, 3));
+        let m = Mask::fill_via(3, |i| i % 2 == 0);
+        assert_eq!(m.counts(), (2, 1));
+    }
+
+    #[test]
     fn set() {
         let mut m = Mask::fill(3, true);
-        m.set(1, false);
+        m.put(1, false);
         m[0] = false;
         assert_eq!(m, Mask::new(vec![false, false, true]));
     }

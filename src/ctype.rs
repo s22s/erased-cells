@@ -266,4 +266,18 @@ mod tests {
 
         assert!(CellType::from_str("UInt57").is_err());
     }
+
+    #[test]
+    fn zero_one() {
+        macro_rules! test {
+            ( $( ($ct:ident, $p:ident) ),* ) => {
+                $({
+                    let zero = CellType::$ct.zero();
+                    let one = CellType::$ct.one();
+                    assert_eq!(one + zero, one);
+                })*
+            };
+        }
+        with_ct!(test);
+    }
 }

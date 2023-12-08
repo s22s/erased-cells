@@ -27,14 +27,10 @@ with_ct!(cb_enum);
 impl CellBuffer {}
 
 impl BufferOps for CellBuffer {
-    /// Construct a [`CellBuffer`] from a `Vec<T>`.
     fn from_vec<T: CellEncoding>(data: Vec<T>) -> Self {
         data.into()
     }
 
-    /// Construct a [`CellBuffer`] of given `len` length and `ct` `CellType`
-    ///
-    /// All cells will be filled with the `CellType`'s corresponding default value.
     fn with_defaults(len: usize, ct: CellType) -> Self {
         macro_rules! empty {
             ( $(($id:ident, $p:ident)),*) => {
@@ -46,7 +42,6 @@ impl BufferOps for CellBuffer {
         with_ct!(empty)
     }
 
-    /// Create a buffer of size `len` with all values `value`.
     fn fill(len: usize, value: CellValue) -> Self {
         macro_rules! empty {
             ( $(($id:ident, $p:ident)),*) => {
@@ -58,9 +53,6 @@ impl BufferOps for CellBuffer {
         with_ct!(empty)
     }
 
-    /// Fill a buffer of size `len` with values from a closure.
-    ///
-    /// First parameter of the closure is the current index.  
     fn fill_via<T, F>(len: usize, f: F) -> Self
     where
         T: CellEncoding,
@@ -70,7 +62,6 @@ impl BufferOps for CellBuffer {
         Self::from_vec(v)
     }
 
-    /// Get the length of the buffer.
     fn len(&self) -> usize {
         macro_rules! len {
             ( $(($id:ident, $_p:ident)),*) => {
@@ -82,12 +73,10 @@ impl BufferOps for CellBuffer {
         with_ct!(len)
     }
 
-    /// Determine if the buffer has zero values in it.
     fn is_empty(&self) -> bool {
         self.len() == 0
     }
 
-    /// Get the cell type of the encoded values.
     fn cell_type(&self) -> CellType {
         macro_rules! ct {
             ( $(($id:ident, $_p:ident)),*) => {
@@ -99,9 +88,6 @@ impl BufferOps for CellBuffer {
         with_ct!(ct)
     }
 
-    /// Get the [`CellValue`] at the given `index`.
-    ///
-    /// Note: Panics of `index` is outside of `[0, len())`.
     fn get(&self, index: usize) -> CellValue {
         macro_rules! get {
             ( $(($id:ident, $_p:ident)),*) => {
@@ -127,10 +113,6 @@ impl BufferOps for CellBuffer {
         Ok(())
     }
 
-    /// Create a new [`CellBuffer`] whereby all [`CellValue`]s are converted to `cell_type`.
-    ///
-    /// Returns `Ok(CellBuffer)` if conversion is possible, and `Err(Error)` if
-    /// contained values cannot fit in `cell_type` without clamping.
     fn convert(&self, cell_type: CellType) -> Result<Self> {
         if cell_type == self.cell_type() {
             return Ok(self.clone());
@@ -156,7 +138,6 @@ impl BufferOps for CellBuffer {
             .fold(init, |(amin, amax), v| (amin.min(v), amax.max(v)))
     }
 
-    /// Convert `self` into a `Vec<T>`.
     fn to_vec<T: CellEncoding>(self) -> Result<Vec<T>> {
         let r = self.convert(T::cell_type())?;
         macro_rules! to_vec {
@@ -187,20 +168,17 @@ impl Debug for CellBuffer {
     }
 }
 
-impl Default for CellBuffer {
-    fn default() -> Self {
-        CellBuffer::Int8(Vec::default())
-    }
-}
-
 impl<C: CellEncoding> Extend<C> for CellBuffer {
     fn extend<T: IntoIterator<Item = C>>(&mut self, iter: T) {
         macro_rules! render {
             ( $(($id:ident, $p:ident)),*) => { paste! {
                 match self {
-                    $(
-                    CellBuffer::$id(b) => b.extend(iter.into_iter().map(|c| c.into_cell_value().[<to_ $p>]().unwrap())),
-                    )*
+                    $(CellBuffer::$id(b) => {
+                        let conv_iter = iter.into_iter().map(|c| {
+                            c.into_cell_value().[<to_ $p>]().unwrap()
+                        });
+                        b.extend(conv_iter)
+                    },)*
                 }
             }}
         }
@@ -219,7 +197,7 @@ impl FromIterator<CellValue> for CellBuffer {
         // TODO: is there a way to avoid this collect?
         let values = iterable.into_iter().collect::<Vec<CellValue>>();
         match values.as_slice() {
-            [] => CellBuffer::UInt8(Vec::new()),
+            [] => CellBuffer::with_defaults(0, CellType::UInt8),
             [x, ..] => {
                 let ct: CellType = x.cell_type();
                 macro_rules! conv {
@@ -409,8 +387,11 @@ mod tests {
 
     #[test]
     fn extend() {
-        let mut buf = CellBuffer::fill(3, 0.into());
+        let mut buf = CellBuffer::fill(3, 0u8.into());
+        assert!(!buf.is_empty());
+        assert_eq!(buf.cell_type(), CellType::UInt8);
         buf.extend([1]);
+        assert_eq!(buf.cell_type(), CellType::UInt8);
         assert_eq!(buf.get(0), 0.into());
         assert_eq!(buf.get(3), 1.into());
     }
@@ -517,16 +498,16 @@ mod tests {
                 let lhs = CellBuffer::fill(3, lhs_val);
                 let rhs_val = rhs_ct.one() + rhs_ct.one();
                 let rhs = CellBuffer::fill(3, rhs_val);
-                assert_eq!((&lhs + &rhs).get(1), lhs_val + rhs_val);
+                assert_eq!((&lhs + &rhs).get(0), lhs_val + rhs_val);
                 assert_eq!((&rhs + &lhs).get(1), rhs_val + lhs_val);
-                assert_eq!((&lhs - &rhs).get(1), lhs_val - rhs_val);
-                assert_eq!((&rhs - &lhs).get(1), rhs_val - lhs_val);
+                assert_eq!((&lhs - &rhs).get(2), lhs_val - rhs_val);
+                assert_eq!((&rhs - &lhs).get(0), rhs_val - lhs_val);
                 assert_eq!((&lhs * &rhs).get(1), lhs_val * rhs_val);
-                assert_eq!((&rhs * &lhs).get(1), rhs_val * lhs_val);
-                assert_eq!((&lhs / &rhs).get(1), lhs_val / rhs_val);
+                assert_eq!((&rhs * &lhs).get(2), rhs_val * lhs_val);
+                assert_eq!((&lhs / &rhs).get(0), lhs_val / rhs_val);
                 assert_eq!((&rhs / &lhs).get(1), rhs_val / lhs_val);
                 // Consuming (non-borrow) case
-                assert_eq!((rhs / lhs).get(1), rhs_val / lhs_val);
+                assert_eq!((rhs / lhs).get(2), rhs_val / lhs_val);
             }
         }
     }

@@ -140,11 +140,18 @@ pub trait BufferOps {
 
     /// Get the [`CellValue`] at index `idx`.
     ///
-    /// Panics of `idx` is outside of `[0, len())`.
+    /// # Panics
+    /// Will panic if `index` >= `self.len()`.
     fn get(&self, index: usize) -> CellValue;
 
     /// Store `value` at position `idx`.
-    fn put(&mut self, idx: usize, value: CellValue) -> error::Result<()>;
+    ///
+    /// Returns `Err(NarrowingError)` if `value.cell_type() != self.cell_type()`
+    /// and overflow could occur.
+    ///
+    /// # Panics
+    /// Will panic if `index` >= `self.len()`.
+    fn put(&mut self, index: usize, value: CellValue) -> error::Result<()>;
 
     /// Create a new [`CellBuffer`] whereby all [`CellValue`]s are converted to `cell_type`.
     ///
