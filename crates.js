@@ -1,1 +1,1 @@
-window.ALL_CRATES = ["erased_cells"];
+window.ALL_CRATES = ["erased_cells","num_traits","paste","proc_macro2","quote","serde","serde_derive","syn","thiserror","thiserror_impl","unicode_ident"];

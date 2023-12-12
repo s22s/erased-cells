@@ -15,17 +15,15 @@
 <a href="#15" id="15">15</a>
 <a href="#16" id="16">16</a>
 <a href="#17" id="17">17</a>
-<a href="#18" id="18">18</a>
-</pre></div><pre class="rust"><code><span class="comment">/*
- * Copyright (c) 2023. Astraea, Inc. All rights reserved.
- */
+</pre></div><pre class="rust"><code><span class="doccomment">//! Crate-wide `Result`/`Error` types.
 
 </span><span class="kw">use </span><span class="kw">crate</span>::CellType;
 <span class="kw">use </span>thiserror::Error <span class="kw">as </span>ThisError;
 
 <span class="kw">pub type </span><span class="prelude-ty">Result</span>&lt;T, E = Error&gt; = std::result::Result&lt;T, E&gt;;
 
-<span class="attr">#[derive(ThisError, Debug)]
+<span class="doccomment">/// Enumeration of error kinds
+</span><span class="attr">#[derive(ThisError, Debug, PartialEq)]
 </span><span class="kw">pub enum </span>Error {
     <span class="attr">#[error(<span class="string">&quot;Invalid narrowing from cell type {src} to {dst}&quot;</span>)]
     </span>NarrowingError { src: CellType, dst: CellType },

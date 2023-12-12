@@ -393,15 +393,6 @@
 <a href="#393" id="393">393</a>
 <a href="#394" id="394">394</a>
 <a href="#395" id="395">395</a>
-<a href="#396" id="396">396</a>
-<a href="#397" id="397">397</a>
-<a href="#398" id="398">398</a>
-<a href="#399" id="399">399</a>
-<a href="#400" id="400">400</a>
-<a href="#401" id="401">401</a>
-<a href="#402" id="402">402</a>
-<a href="#403" id="403">403</a>
-<a href="#404" id="404">404</a>
 </pre></div><pre class="rust"><code><span class="comment">/*
  * Copyright (c) 2023. Astraea, Inc. All rights reserved.
  */
@@ -599,7 +590,7 @@
 
     <span class="kw">use </span>num_traits::ToPrimitive;
 
-    <span class="kw">use crate</span>::{with_ct, CellValue};
+    <span class="kw">use </span><span class="kw">crate</span>::CellValue;
 
     <span class="comment">// NOTE: We _currently_ take the position that any math ops will promote all integral primitives to f64 first
     // Will probably need to revisit this.
@@ -674,16 +665,7 @@
 
     <span class="kw">impl </span>PartialEq&lt;<span class="self">Self</span>&gt; <span class="kw">for </span>CellValue {
         <span class="kw">fn </span>eq(<span class="kw-2">&amp;</span><span class="self">self</span>, other: <span class="kw-2">&amp;</span><span class="self">Self</span>) -&gt; bool {
-            <span class="kw">let </span>(lhs, rhs) = <span class="self">self</span>.unify(other);
-            <span class="macro">macro_rules! </span>cmp {
-                ($( (<span class="macro-nonterminal">$id</span>:ident, <span class="macro-nonterminal">$_p</span>:ident) ),<span class="kw-2">*</span>) =&gt; {
-                    <span class="kw">match </span>(lhs, rhs) {
-                        $((CellValue::<span class="macro-nonterminal">$id</span>(l), CellValue::<span class="macro-nonterminal">$id</span>(r)) =&gt; l.eq(<span class="kw-2">&amp;</span>r),)*
-                        <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">&quot;{self:?} &lt;&gt; {other:?}&quot;</span>),
-                    }
-                };
-            }
-            <span class="macro">with_ct!</span>(cmp)
+            Ord::cmp(<span class="self">self</span>, other) == Ordering::Equal
         }
     }
 

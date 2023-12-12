@@ -58,15 +58,49 @@
 <a href="#58" id="58">58</a>
 <a href="#59" id="59">59</a>
 <a href="#60" id="60">60</a>
-</pre></div><pre class="rust"><code><span class="kw">use crate</span>::{CellEncoding, CellType};
+<a href="#61" id="61">61</a>
+<a href="#62" id="62">62</a>
+<a href="#63" id="63">63</a>
+<a href="#64" id="64">64</a>
+<a href="#65" id="65">65</a>
+<a href="#66" id="66">66</a>
+<a href="#67" id="67">67</a>
+<a href="#68" id="68">68</a>
+<a href="#69" id="69">69</a>
+<a href="#70" id="70">70</a>
+<a href="#71" id="71">71</a>
+<a href="#72" id="72">72</a>
+<a href="#73" id="73">73</a>
+<a href="#74" id="74">74</a>
+<a href="#75" id="75">75</a>
+<a href="#76" id="76">76</a>
+<a href="#77" id="77">77</a>
+<a href="#78" id="78">78</a>
+<a href="#79" id="79">79</a>
+<a href="#80" id="80">80</a>
+<a href="#81" id="81">81</a>
+<a href="#82" id="82">82</a>
+<a href="#83" id="83">83</a>
+<a href="#84" id="84">84</a>
+<a href="#85" id="85">85</a>
+<a href="#86" id="86">86</a>
+<a href="#87" id="87">87</a>
+<a href="#88" id="88">88</a>
+<a href="#89" id="89">89</a>
+<a href="#90" id="90">90</a>
+<a href="#91" id="91">91</a>
+<a href="#92" id="92">92</a>
+<a href="#93" id="93">93</a>
+</pre></div><pre class="rust"><code><span class="kw">use crate</span>::{CellEncoding, CellType, CellValue};
 
 <span class="doccomment">/// Encodes a no-data value for cells that should be considered invalid
 /// or masked-out of a result.
-</span><span class="attr">#[derive(Debug, Copy, Clone, PartialEq)]
+</span><span class="attr">#[derive(Debug, Copy, Clone, PartialEq, Default)]
 </span><span class="kw">pub enum </span>NoData&lt;T: CellEncoding&gt; {
     <span class="doccomment">/// Case where there is no no-data value.
     </span><span class="prelude-val">None</span>,
     <span class="doccomment">/// Case where there the default no-data value should be used.
+    </span><span class="attr">#[default]
     </span>Default,
     <span class="doccomment">/// Case where a specific no-data value is specified.
     </span>Value(T),
@@ -94,11 +128,38 @@
             },
         }
     }
+    <span class="doccomment">/// Determines if `value` should be considered a &quot;no-data&quot; value.
+    </span><span class="kw">pub fn </span>is(<span class="kw-2">&amp;</span><span class="self">self</span>, value: <span class="kw-2">&amp;</span>CellValue) -&gt; bool {
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(nd_val) = <span class="self">self</span>.value() {
+            <span class="kw">let </span>nd_val2 = nd_val.into_cell_value();
+            <span class="kw-2">&amp;</span>nd_val2 == value
+        } <span class="kw">else </span>{
+            <span class="bool-val">false
+        </span>}
+    }
+}
+
+<span class="doccomment">/// Trait for no-data testing.
+</span><span class="kw">pub trait </span>IsNodata {
+    <span class="doccomment">/// Determines if the `self` matches given `NoData` value.
+    </span><span class="kw">fn </span>is&lt;N: CellEncoding&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, no_data: NoData&lt;N&gt;) -&gt; bool;
+}
+
+<span class="kw">impl </span>IsNodata <span class="kw">for </span>CellValue {
+    <span class="kw">fn </span>is&lt;N: CellEncoding&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, no_data: NoData&lt;N&gt;) -&gt; bool {
+        no_data.is(<span class="self">self</span>)
+    }
+}
+
+<span class="kw">impl</span>&lt;T: CellEncoding&gt; IsNodata <span class="kw">for </span>T {
+    <span class="kw">fn </span>is&lt;N: CellEncoding&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, no_data: NoData&lt;N&gt;) -&gt; bool {
+        no_data.is(<span class="kw-2">&amp;</span><span class="self">self</span>.into_cell_value())
+    }
 }
 
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>tests {
-    <span class="kw">use crate</span>::{with_ct, NoData};
+    <span class="kw">use crate</span>::{with_ct, IsNodata, NoData};
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>has_value() {
@@ -116,6 +177,11 @@
             }
         }
         <span class="macro">with_ct!</span>(test);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>is_nodata() {
+        <span class="macro">assert!</span>(f64::NAN.is(NoData::&lt;f64&gt;::Default));
     }
 }
 </code></pre></div></section></main></body></html>
