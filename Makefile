@@ -1,4 +1,7 @@
-.PHONY: docs
+.PHONY: all help docs docs-repair docs-publish docs-clean
+
+all: help
+
 docs: ## Build documentation
 	@if [[ ! -d docs ]]; then \
 		git worktree add docs gh-pages; \
@@ -20,4 +23,9 @@ docs-publish: ## Push built documentation to gh-pages branch
 
 docs-clean: ## Clear documentation build artifacts
 	@rm -r docs/*
+
+
+# Credit: https://marmelab.com/blog/2016/02/29/auto-documented-makefile.html
+help: ## Print available recipes
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
 

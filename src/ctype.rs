@@ -15,7 +15,7 @@ use std::str::FromStr;
 macro_rules! cv_enum {
     ( $(($id:ident, $_p:ident)),*) => {
         /// Cell-type variants
-        #[derive(Debug, Copy, Clone, PartialEq, Eq)]
+        #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
         #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
         #[repr(u8)]
         pub enum CellType { $($id),* }
@@ -159,7 +159,7 @@ impl CellType {
     }
 
     /// Determine the minimum value that can be represented by `self`.
-    pub fn min(&self) -> CellValue {
+    pub fn min_value(&self) -> CellValue {
         macro_rules! mins {
             ( $( ($id:ident, $p:ident) ),* ) => {
                 match self {
@@ -171,7 +171,7 @@ impl CellType {
     }
 
     /// Determine the maximum value that can be represented by `self`.
-    pub fn max(&self) -> CellValue {
+    pub fn max_value(&self) -> CellValue {
         macro_rules! maxs {
             ( $( ($id:ident, $p:ident) ),* ) => {
                 match self {
@@ -238,8 +238,8 @@ mod tests {
         macro_rules! test {
             ( $( ($ct:ident, $p:ident) ),* ) => {
                 $(
-                    assert_eq!(CellType::$ct.min(), $p::MIN.into(), "min");
-                    assert_eq!(CellType::$ct.max(), $p::MAX.into(), "max");
+                    assert_eq!(CellType::$ct.min_value(), $p::MIN.into(), "min");
+                    assert_eq!(CellType::$ct.max_value(), $p::MAX.into(), "max");
                 )*
             };
         }

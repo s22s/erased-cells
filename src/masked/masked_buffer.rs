@@ -1,10 +1,41 @@
 use std::fmt::{Debug, Formatter};
 
+pub use self::ops::*;
+use crate::masked::nodata::IsNodata;
+use crate::{BufferOps, CellBuffer, CellEncoding, CellType, CellValue, Mask, NoData};
 use serde::{Deserialize, Serialize};
 
-pub use self::ops::*;
-use crate::{BufferOps, CellBuffer, CellEncoding, CellType, CellValue, Mask, NoData};
-
+/// A [`CellBuffer`] with a companion [`Mask`].
+///
+/// The `Mask` tracks which cells are valid across operations, and which should be
+/// treated as "no-data" values.
+///
+/// # Example
+///
+/// ```rust
+/// use erased_cells::{BufferOps, Mask, MaskedCellBuffer};
+/// // Fill a buffer with the `u16` numbers `0..=3` and mask [true, false, true, false].
+/// let buf = MaskedCellBuffer::fill_with_mask_via(4, |i| (i as f64, i % 2 == 0));
+/// assert_eq!(buf.mask(), &Mask::new(vec![true, false, true, false]));
+/// // We can count the data/no-data values
+/// assert_eq!(buf.counts(), (2, 2));
+///
+/// // Mask values are propagated across math operations.
+/// let ones = MaskedCellBuffer::from_vec(vec![1.0; 4]);
+/// let r = (buf + ones) * 2.0;
+///
+/// let expected = MaskedCellBuffer::new(
+///     vec![
+///         (0.0 + 1.0) * 2.0,
+///         (1.0 + 1.0) * 2.0,
+///         (2.0 + 1.0) * 2.0,
+///         (3.0 + 1.0) * 2.0,
+///     ]
+///     .into(),
+///     Mask::new(vec![true, false, true, false]),
+/// );
+/// assert_eq!(r, expected);
+/// ```
 #[derive(Clone, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct MaskedCellBuffer(CellBuffer, Mask);
@@ -21,6 +52,22 @@ impl MaskedCellBuffer {
             "Mask and buffer must have the same length."
         );
         Self(buffer, mask)
+    }
+
+    /// Constructs a `MaskedCellBuffer` from a `Vec<CellEncoding>`, specifying a `NoData<T>` value.
+    ///
+    /// Mask value will be `false` when associated cell matches `nodata`.
+    ///
+    /// Use [`Self::from_vec`]
+    pub fn from_vec_with_nodata<T: CellEncoding>(data: Vec<T>, nodata: NoData<T>) -> Self {
+        let mut mask = Mask::fill(data.len(), true);
+        let buf = CellBuffer::from_vec(data);
+
+        buf.into_iter().zip(mask.iter_mut()).for_each(|(v, m)| {
+            *m = !v.is(nodata);
+        });
+
+        Self::new(buf, mask)
     }
 
     pub fn fill_with_mask_via<T, F>(len: usize, mv: F) -> Self
@@ -79,6 +126,11 @@ impl MaskedCellBuffer {
         self.put(index, value)?;
         self.mask_mut().put(index, mask);
         Ok(())
+    }
+
+    /// Returns a tuple of representing counts of `(data, nodata)`.
+    pub fn counts(&self) -> (usize, usize) {
+        self.mask().counts()
     }
 
     /// Convert `self` into a `Vec<T>`, replacing values where the mask is `0` to `no_data.value()`
@@ -154,7 +206,7 @@ impl BufferOps for MaskedCellBuffer {
     }
 
     fn min_max(&self) -> (CellValue, CellValue) {
-        let init = (self.cell_type().max(), self.cell_type().min());
+        let init = (self.cell_type().max_value(), self.cell_type().min_value());
         self.into_iter().fold(init, |(amin, amax), (v, m)| {
             if m {
                 (amin.min(v), amax.max(v))
@@ -354,6 +406,21 @@ mod tests {
         assert_eq!(m.mask().counts(), (4, 0));
         let m = MaskedCellBuffer::with_defaults(4, CellType::Int8);
         assert_eq!(m.mask().counts(), (4, 0));
+    }
+
+    #[test]
+    fn vec_with_nodata() {
+        let v = vec![1.0, f64::NAN, 3.0, f64::NAN];
+        let m = MaskedCellBuffer::from_vec_with_nodata(v.clone(), NoData::Default);
+        assert_eq!(
+            m,
+            MaskedCellBuffer::new(v.clone().into(), Mask::new(vec![true, false, true, false]))
+        );
+        let m = MaskedCellBuffer::from_vec_with_nodata(v.clone(), NoData::new(3.0));
+        assert_eq!(
+            m,
+            MaskedCellBuffer::new(v.into(), Mask::new(vec![true, true, false, true]))
+        );
     }
 
     #[test]

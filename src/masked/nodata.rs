@@ -1,4 +1,4 @@
-use crate::{CellEncoding, CellType};
+use crate::{CellEncoding, CellType, CellValue};
 
 /// Encodes a no-data value for cells that should be considered invalid
 /// or masked-out of a result.
@@ -35,11 +35,36 @@ impl<T: CellEncoding> NoData<T> {
             },
         }
     }
+    pub fn is(&self, value: &CellValue) -> bool {
+        if let Some(nd_val) = self.value() {
+            let nd_val2 = nd_val.into_cell_value();
+            &nd_val2 == value
+        } else {
+            false
+        }
+    }
+}
+
+pub trait IsNodata {
+    /// Determines if the `self` matches given `NoData` value.
+    fn is<N: CellEncoding>(&self, no_data: NoData<N>) -> bool;
+}
+
+impl IsNodata for CellValue {
+    fn is<N: CellEncoding>(&self, no_data: NoData<N>) -> bool {
+        no_data.is(self)
+    }
+}
+
+impl<T: CellEncoding> IsNodata for T {
+    fn is<N: CellEncoding>(&self, no_data: NoData<N>) -> bool {
+        no_data.is(&self.into_cell_value())
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::{with_ct, NoData};
+    use crate::{with_ct, IsNodata, NoData};
 
     #[test]
     fn has_value() {
@@ -57,5 +82,10 @@ mod tests {
             }
         }
         with_ct!(test);
+    }
+
+    #[test]
+    fn is_nodata() {
+        assert!(f64::NAN.is(NoData::<f64>::Default));
     }
 }

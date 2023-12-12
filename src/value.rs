@@ -195,7 +195,7 @@ pub(crate) mod ops {
 
     use num_traits::ToPrimitive;
 
-    use crate::{with_ct, CellValue};
+    use crate::CellValue;
 
     // NOTE: We _currently_ take the position that any math ops will promote all integral primitives to f64 first
     // Will probably need to revisit this.
@@ -270,16 +270,7 @@ pub(crate) mod ops {
 
     impl PartialEq<Self> for CellValue {
         fn eq(&self, other: &Self) -> bool {
-            let (lhs, rhs) = self.unify(other);
-            macro_rules! cmp {
-                ($( ($id:ident, $_p:ident) ),*) => {
-                    match (lhs, rhs) {
-                        $((CellValue::$id(l), CellValue::$id(r)) => l.eq(&r),)*
-                        _ => unreachable!("{self:?} <> {other:?}"),
-                    }
-                };
-            }
-            with_ct!(cmp)
+            Ord::cmp(self, other) == Ordering::Equal
         }
     }
 

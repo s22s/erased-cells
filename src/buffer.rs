@@ -17,7 +17,7 @@ pub use self::ops::*;
 /// CellBuffer enum constructor.
 macro_rules! cb_enum {
     ( $(($id:ident, $p:ident)),*) => {
-        #[derive(Clone, PartialEq, PartialOrd)]
+        #[derive(Clone)]
         #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
         pub enum CellBuffer { $($id(Vec<$p>)),* }
     }
@@ -133,7 +133,7 @@ impl BufferOps for CellBuffer {
     }
 
     fn min_max(&self) -> (CellValue, CellValue) {
-        let init = (self.cell_type().max(), self.cell_type().min());
+        let init = (self.cell_type().max_value(), self.cell_type().min_value());
         self.into_iter()
             .fold(init, |(amin, amax), v| (amin.min(v), amax.max(v)))
     }
@@ -278,9 +278,10 @@ impl<C: CellEncoding> TryFrom<CellBuffer> for Vec<C> {
 }
 
 mod ops {
+    use std::cmp::Ordering;
     use std::ops::{Add, Div, Mul, Neg, Sub};
 
-    use crate::{CellBuffer, CellValue};
+    use crate::{BufferOps, CellBuffer, CellValue};
 
     macro_rules! cb_bin_op {
         ($trt:ident, $mth:ident, $op:tt) => {
@@ -331,6 +332,71 @@ mod ops {
         type Output = CellBuffer;
         fn neg(self) -> Self::Output {
             Neg::neg(&self)
+        }
+    }
+
+    impl PartialEq<Self> for CellBuffer {
+        fn eq(&self, other: &Self) -> bool {
+            Ord::cmp(self, other) == Ordering::Equal
+        }
+    }
+
+    impl Eq for CellBuffer {}
+
+    impl PartialOrd for CellBuffer {
+        fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+            Some(self.cmp(other))
+        }
+    }
+
+    /// Computes ordering for [`CellBuffer`]. Unlike `Vec<CellEncoding>`, floating point
+    /// cell types are compared with `{f32|f64}::total_cmp`.  
+    impl Ord for CellBuffer {
+        fn cmp(&self, other: &Self) -> Ordering {
+            let lct = self.cell_type();
+            let rct = other.cell_type();
+
+            // If the cell types are different, then base comparison on that.
+            match lct.cmp(&rct) {
+                Ordering::Equal => (),
+                ne => return ne,
+            }
+
+            macro_rules! total_cmp {
+                ($l:ident, $r:ident) => {{
+                    // Implementation derived from core::slice::cmp::SliceOrd.
+                    let len = $l.len().min($r.len());
+
+                    // Slice to the loop iteration range to enable bound check
+                    // elimination in the compiler
+                    let lhs = &$l[..len];
+                    let rhs = &$r[..len];
+
+                    for i in 0..len {
+                        match lhs[i].total_cmp(&rhs[i]) {
+                            Ordering::Equal => (),
+                            non_eq => return non_eq,
+                        }
+                    }
+                    $l.len().cmp(&$r.len())
+                }};
+            }
+            // lhs & rhs have to be the same variant.
+            // For integral values, defer to `Vec`'s `Ord`.
+            // For floating values, we use `total_ord`.
+            match (self, other) {
+                (CellBuffer::UInt8(lhs), CellBuffer::UInt8(rhs)) => Ord::cmp(&lhs, &rhs),
+                (CellBuffer::UInt16(lhs), CellBuffer::UInt16(rhs)) => Ord::cmp(&lhs, &rhs),
+                (CellBuffer::UInt32(lhs), CellBuffer::UInt32(rhs)) => Ord::cmp(&lhs, &rhs),
+                (CellBuffer::UInt64(lhs), CellBuffer::UInt64(rhs)) => Ord::cmp(&lhs, &rhs),
+                (CellBuffer::Int8(lhs), CellBuffer::Int8(rhs)) => Ord::cmp(&lhs, &rhs),
+                (CellBuffer::Int16(lhs), CellBuffer::Int16(rhs)) => Ord::cmp(&lhs, &rhs),
+                (CellBuffer::Int32(lhs), CellBuffer::Int32(rhs)) => Ord::cmp(&lhs, &rhs),
+                (CellBuffer::Int64(lhs), CellBuffer::Int64(rhs)) => Ord::cmp(&lhs, &rhs),
+                (CellBuffer::Float32(l), CellBuffer::Float32(r)) => total_cmp!(l, r),
+                (CellBuffer::Float64(l), CellBuffer::Float64(r)) => total_cmp!(l, r),
+                _ => unreachable!("{self:?} <> {other:?}"),
+            }
         }
     }
 }
@@ -517,5 +583,56 @@ mod tests {
         let buf = CellBuffer::fill_via(9, |i| i as u8 + 1);
         let r = buf * 2.0;
         assert_eq!(r, CellBuffer::fill_via(9, |i| (i as f64 + 1.0) * 2.0));
+    }
+
+    #[test]
+    fn equal() {
+        let buf = CellBuffer::fill_via(9, |i| if i % 2 == 0 { f64::NAN } else { i as f64 });
+        assert_eq!(buf, buf);
+        assert_eq!(
+            CellBuffer::with_defaults(4, CellType::UInt8),
+            CellBuffer::with_defaults(4, CellType::UInt8)
+        );
+        assert_ne!(
+            CellBuffer::with_defaults(4, CellType::UInt8),
+            CellBuffer::with_defaults(5, CellType::UInt8)
+        );
+    }
+
+    #[test]
+    fn cmp() {
+        assert!(CellBuffer::from_vec(vec![1, 2, 3]) < CellBuffer::from_vec(vec![2, 3, 4]));
+        // Higher positioned elements determine ordering
+        assert!(CellBuffer::from_vec(vec![1, 2, 3]) < CellBuffer::from_vec(vec![2, 3]));
+
+        assert!(
+            CellBuffer::from_vec(vec![f64::NAN, 2.0, 3.0])
+                < CellBuffer::from_vec(vec![f64::NAN, 2.0, 4.0])
+        );
+
+        assert!(
+            CellBuffer::with_defaults(4, CellType::UInt8)
+                < CellBuffer::with_defaults(4, CellType::Float32)
+        );
+        assert!(
+            CellBuffer::with_defaults(4, CellType::Float32)
+                > CellBuffer::with_defaults(4, CellType::UInt8)
+        );
+        assert!(
+            CellBuffer::with_defaults(4, CellType::UInt8)
+                < CellBuffer::with_defaults(5, CellType::UInt8)
+        );
+        assert!(
+            CellBuffer::with_defaults(5, CellType::UInt8)
+                > CellBuffer::with_defaults(4, CellType::UInt8)
+        );
+        assert!(
+            CellBuffer::with_defaults(4, CellType::Float64)
+                < CellBuffer::with_defaults(5, CellType::Float64)
+        );
+        assert!(
+            CellBuffer::with_defaults(5, CellType::Float64)
+                > CellBuffer::with_defaults(4, CellType::Float64)
+        );
     }
 }

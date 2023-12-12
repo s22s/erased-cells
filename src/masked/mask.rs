@@ -56,6 +56,11 @@ impl Mask {
         self.0[index]
     }
 
+    /// Gets an mutable iterator over values in mask, in sequence.
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = &'_ mut bool> {
+        self.0.iter_mut()
+    }
+
     /// Determine if all mask values equal `value`.
     pub fn all(&self, value: bool) -> bool {
         self.0.iter().all(|b| *b == value)
@@ -164,7 +169,6 @@ impl Debug for Mask {
 impl IntoIterator for Mask {
     type Item = bool;
     type IntoIter = IntoIter<bool>;
-
     fn into_iter(self) -> Self::IntoIter {
         self.0.into_iter()
     }
