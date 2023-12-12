@@ -1,0 +1,21 @@
+[package]
+name = "erased-cells"
+version = "0.1.0"
+description = "Create to enable manipulation of heterogeneous values and buffers of Rust primitive numeric types"
+edition = "2021"
+license = "MIT"
+keywords = ["buffers", "nodata", "raster", "cells", "pixels"]
+categories = ["data-structures", "encoding", "science::geo", "graphics"]
+repository = "https://github.com/s22s/erased-cells/"
+homepage = "https://s22s.github.io/erased-cells/"
+
+[features]
+default = ["masked", "serde"]
+masked = []
+serde = ["dep:serde"]
+
+[dependencies]
+num-traits = "0.2"
+thiserror = "1"
+paste = "1"
+serde = { version = "1", features = ["derive"], optional = true }

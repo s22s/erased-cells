@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+env:
+  RUST_BACKTRACE: 1
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    name: "Test"
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Install stable
+        run: |
+          rustup install --no-self-update --profile minimal stable
+          rustup component add rustfmt clippy
+
+      - name: Check with Rustfmt
+        run: cargo fmt --all --check
+      - name: Check with Clippy
+        run: cargo clippy --all-targets -- -D warnings
+      - name: Check with Clippy (--all-features)
+        run: cargo clippy --all-targets --all-features -- -D warnings
+      - name: Run tests (--all-features)
+        run: cargo test --all-features

@@ -1,0 +1,3 @@
+[alias]
+# Run clippy, raising warnings to errors
+nowarn = "clippy --all-targets -- -D warnings"
