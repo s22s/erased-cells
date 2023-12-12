@@ -1,6 +1,6 @@
-use erased_cells::{BufferOps, Mask, MaskedCellBuffer};
-
+#[cfg(feature = "masked")]
 fn main() {
+    use erased_cells::{BufferOps, Mask, MaskedCellBuffer};
     // Fill a buffer with the `u16` numbers `0..=3` and mask [true, false, true, false].
     let buf = MaskedCellBuffer::fill_with_mask_via(4, |i| (i as f64, i % 2 == 0));
     assert_eq!(buf.mask(), &Mask::new(vec![true, false, true, false]));
@@ -22,3 +22,6 @@ fn main() {
     );
     assert_eq!(r, expected);
 }
+
+#[cfg(not(feature = "masked"))]
+fn main() {}

@@ -1,4 +1,6 @@
 use crate::Elided;
+
+#[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 use std::fmt::{Debug, Formatter};
 use std::ops::{BitAnd, BitOr, Index, IndexMut, Not};

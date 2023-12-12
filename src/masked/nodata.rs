@@ -1,8 +1,11 @@
 use crate::{CellEncoding, CellType, CellValue};
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
 
 /// Encodes a no-data value for cells that should be considered invalid
 /// or masked-out of a result.
 #[derive(Debug, Copy, Clone, PartialEq, Default)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum NoData<T: CellEncoding> {
     /// Case where there is no no-data value.
     None,
