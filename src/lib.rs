@@ -27,6 +27,15 @@
 //! * [`CellBuffer` example](crate::CellBuffer#example)
 //! * [`MaskedCellBuffer` example](crate::MaskedCellBuffer#example)
 //!
+//! # Feature Flags
+//!
+//! The following feature flags are available.
+//!
+//! | Name     | Description                          | Default |
+//! |:--------:|--------------------------------------|:-------:|
+//! | `masked` | Enable the `MaskedCellBuffer` API    | `true`  |
+//! | `serde`  | Derive `serde` traits for core types | `true`  |
+//!
 
 mod buffer;
 mod ctype;
