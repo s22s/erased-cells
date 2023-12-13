@@ -31,16 +31,19 @@
 //!
 //! The following feature flags are available.
 //!
-//! | Name     | Description                          | Default |
-//! |:--------:|--------------------------------------|:-------:|
-//! | `masked` | Enable the `MaskedCellBuffer` API    | `true`  |
-//! | `serde`  | Derive `serde` traits for core types | `true`  |
+//! | Name     | Description                                    | Default |
+//! |:--------:|------------------------------------------------|:-------:|
+//! | `masked` | Enable the `MaskedCellBuffer` API              | `true`  |
+//! | `serde`  | Derive `serde` traits for core types           | `true`  |
+//! | `gdal`   | Enable `CellBuffer`s in `georust/gdal` API     | `false` |
 //!
 
 mod buffer;
 mod ctype;
 mod encoding;
 pub mod error;
+#[cfg(feature = "gdal")]
+mod gdal;
 #[cfg(feature = "masked")]
 mod masked;
 mod value;

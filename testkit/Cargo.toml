@@ -1,0 +1,8 @@
+[package]
+name = "erased-cells-testkit"
+version.workspace = true
+edition.workspace = true
+publish = false
+
+[dependencies]
+once_cell.workspace = true
