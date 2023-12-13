@@ -1,6 +1,14 @@
 # Erased Buffers
+[![Build Status]][actions] [![Test Coverage]][codecov] [![Latest Version]][crates.io] [![Documentation]][docs.rs] 
 
-![ci](https://github.com/s22s/erased-cells/actions/workflows/CI.yml/badge.svg)
+[Build Status]: https://github.com/s22s/erased-cells/actions/workflows/CI.yml/badge.svg
+[actions]: https://github.com/s22s/erased-cells/actions?query=branch%3Adevelop
+[Latest Version]: https://img.shields.io/crates/v/erased-cells.svg
+[crates.io]: https://crates.io/crates/erased-cells
+[Test Coverage]: https://codecov.io/gh/s22s/erased-cells/graph/badge.svg?token=6GKU96IMV5
+[codecov]: https://codecov.io/gh/s22s/erased-cells
+[Documentation]: https://img.shields.io/docsrs/erased-cells
+[docs.rs]: https://docs.rs/erased-cells/latest/erased_cells/
 
 Enables the use and manipulation of type-erased buffers of Rust primitives.
 
