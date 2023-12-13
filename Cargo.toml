@@ -27,7 +27,8 @@ all-features = true
 
 [workspace.metadata.release]
 enable-all-features = true
-consolidate-commits = false
+consolidate-commits = true
 allow-branch = ["main"]
+push = false
 pre-release-commit-message = "Released version {{version}}"
 pre-release-hook = [".cargo/release-hook.sh"]
