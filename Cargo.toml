@@ -1,6 +1,6 @@
 [package]
 name = "erased-cells"
-version = "0.1.0"
+version = "0.1.1"
 description = "Create to enable manipulation of heterogeneous values and buffers of Rust primitive numeric types"
 edition = "2021"
 license = "MIT"
