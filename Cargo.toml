@@ -28,3 +28,4 @@ all-features = true
 [workspace.metadata.release]
 enable-all-features = true
 allow-branch = ["main"]
+pre-release-commit-message = "Release {{crate_name}} version {{version}}"
