@@ -49,6 +49,7 @@ jobs:
   test:
     name: Test
     runs-on: ubuntu-latest
+    environment: codecov
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
