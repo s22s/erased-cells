@@ -30,7 +30,7 @@ default = ["masked", "serde"]
 masked = []
 # Enables serde
 serde = ["dep:serde"]
-gdal = ["masked", "dep:extend", "dep:gdal", "dep:gdal-sys" ]
+gdal = ["masked", "dep:extend", "dep:gdal", "dep:gdal-sys", "erased-cells-testkit/gdal" ]
 
 [workspace.dependencies]
 once_cell = "1.19.0"

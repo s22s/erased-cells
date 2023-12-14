@@ -56,7 +56,11 @@ macro_rules! cb_enum {
 }
 with_ct!(cb_enum);
 
-impl CellBuffer {}
+impl CellBuffer {
+    pub fn new<T: CellEncoding>(data: Vec<T>) -> Self {
+        data.into()
+    }
+}
 
 impl BufferOps for CellBuffer {
     fn from_vec<T: CellEncoding>(data: Vec<T>) -> Self {

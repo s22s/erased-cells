@@ -114,6 +114,7 @@ dependencies = [
 name = "erased-cells-testkit"
 version = "0.1.1"
 dependencies = [
+ "gdal",
  "once_cell",
 ]
 
