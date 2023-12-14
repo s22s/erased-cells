@@ -19,6 +19,8 @@ pub enum Error {
     ExpectedError(String),
     #[error("Unable to parse {0} as a {1}")]
     ParseError(String, &'static str),
+    #[error("Unable to convert {0} into NoData<{1}>::Value")]
+    NoDataConversionError(f64, &'static str),
     #[cfg(feature = "gdal")]
     #[error(transparent)]
     GdalError(#[from] GdalError),
