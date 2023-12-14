@@ -28,10 +28,13 @@ impl<T: CellEncoding> NoData<T> {
                 CellType::UInt8 => T::static_cast(<u8>::MIN),
                 CellType::UInt16 => T::static_cast(<u16>::MIN),
                 CellType::UInt32 => T::static_cast(<u32>::MIN),
+                #[cfg(not(feature = "gdal"))]
                 CellType::UInt64 => T::static_cast(<u64>::MIN),
+                #[cfg(not(feature = "gdal"))]
                 CellType::Int8 => T::static_cast(<i8>::MIN),
                 CellType::Int16 => T::static_cast(<i16>::MIN),
                 CellType::Int32 => T::static_cast(<i32>::MIN),
+                #[cfg(not(feature = "gdal"))]
                 CellType::Int64 => T::static_cast(<i64>::MIN),
                 CellType::Float32 => T::static_cast(<f32>::NAN),
                 CellType::Float64 => T::static_cast(<f64>::NAN),
@@ -73,7 +76,7 @@ mod tests {
 
     #[test]
     fn has_value() {
-        assert_eq!(NoData::<i8>::None.value(), None);
+        assert_eq!(NoData::<i16>::None.value(), None);
         assert_eq!(NoData::<u8>::Default.value(), Some(<u8>::MIN));
         assert!(NoData::<f32>::Default.value().unwrap().is_nan());
         assert_eq!(NoData::new(6u16).value(), Some(6u16));

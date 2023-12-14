@@ -57,10 +57,13 @@ impl CellType {
             CellType::UInt8 => true,
             CellType::UInt16 => true,
             CellType::UInt32 => true,
+            #[cfg(not(feature = "gdal"))]
             CellType::UInt64 => true,
+            #[cfg(not(feature = "gdal"))]
             CellType::Int8 => true,
             CellType::Int16 => true,
             CellType::Int32 => true,
+            #[cfg(not(feature = "gdal"))]
             CellType::Int64 => true,
             CellType::Float32 => false,
             CellType::Float64 => false,
@@ -73,10 +76,13 @@ impl CellType {
             CellType::UInt8 => false,
             CellType::UInt16 => false,
             CellType::UInt32 => false,
+            #[cfg(not(feature = "gdal"))]
             CellType::UInt64 => false,
+            #[cfg(not(feature = "gdal"))]
             CellType::Int8 => true,
             CellType::Int16 => true,
             CellType::Int32 => true,
+            #[cfg(not(feature = "gdal"))]
             CellType::Int64 => true,
             CellType::Float32 => true,
             CellType::Float64 => true,
@@ -113,13 +119,16 @@ impl CellType {
         //dbg!(min_bytes, signed, integral);
         match (min_bytes, signed, integral) {
             (1, false, true) => Self::UInt8,
+            #[cfg(not(feature = "gdal"))]
             (1, true, true) => Self::Int8,
             (2, false, true) => Self::UInt16,
             (2, true, true) => Self::Int16,
             (4, false, true) => Self::UInt32,
             (4, true, true) => Self::Int32,
             (4, _, false) => Self::Float32,
+            #[cfg(not(feature = "gdal"))]
             (8, false, true) => Self::UInt64,
+            #[cfg(not(feature = "gdal"))]
             (8, true, true) => Self::Int64,
             _ => Self::Float64,
         }
@@ -216,13 +225,16 @@ mod tests {
 
     #[test]
     fn size() {
+        #[cfg(not(feature = "gdal"))]
         assert_eq!(CellType::Int8.size_of(), 1);
         assert_eq!(CellType::UInt8.size_of(), 1);
         assert_eq!(CellType::Int16.size_of(), 2);
         assert_eq!(CellType::UInt16.size_of(), 2);
         assert_eq!(CellType::Int32.size_of(), 4);
         assert_eq!(CellType::UInt32.size_of(), 4);
+        #[cfg(not(feature = "gdal"))]
         assert_eq!(CellType::Int64.size_of(), 8);
+        #[cfg(not(feature = "gdal"))]
         assert_eq!(CellType::UInt64.size_of(), 8);
         assert_eq!(CellType::Float32.size_of(), 4);
         assert_eq!(CellType::Float64.size_of(), 8);

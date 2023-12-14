@@ -406,7 +406,7 @@ mod tests {
 
         let m = MaskedCellBuffer::from_vec(vec![0.0; 4]);
         assert_eq!(m.mask().counts(), (4, 0));
-        let m = MaskedCellBuffer::with_defaults(4, CellType::Int8);
+        let m = MaskedCellBuffer::with_defaults(4, CellType::Int16);
         assert_eq!(m.mask().counts(), (4, 0));
     }
 

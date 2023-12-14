@@ -18,13 +18,10 @@ impl TryFrom<GdalDataType> for CellType {
     fn try_from(value: GdalDataType) -> Result<Self, Self::Error> {
         match value {
             GdalDataType::UInt8 => Ok(CellType::UInt8),
-            GdalDataType::Int8 => Ok(CellType::Int8),
             GdalDataType::UInt16 => Ok(CellType::UInt16),
             GdalDataType::Int16 => Ok(CellType::Int16),
             GdalDataType::UInt32 => Ok(CellType::UInt32),
             GdalDataType::Int32 => Ok(CellType::Int32),
-            GdalDataType::UInt64 => Ok(CellType::UInt64),
-            GdalDataType::Int64 => Ok(CellType::Int64),
             GdalDataType::Float32 => Ok(CellType::Float32),
             GdalDataType::Float64 => Ok(CellType::Float64),
             o => Err(Self::Error::UnsupportedCellTypeError(o.to_string())),

@@ -6,9 +6,7 @@ publish = false
 
 [features]
 default = []
-gdal = ["dep:gdal" ]
-
 
 [dependencies]
 once_cell.workspace = true
-gdal = { version = "0.16.0", optional = true }
+

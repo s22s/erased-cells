@@ -227,11 +227,14 @@ pub(crate) mod ops {
             match self {
                 CellValue::UInt8(v) => CellValue::new(-(v as i16)),
                 CellValue::UInt16(v) => CellValue::new(-(v as i32)),
-                CellValue::UInt32(v) => CellValue::new(-(v as i64)),
+                CellValue::UInt32(v) => CellValue::new(-(v as f64)),
+                #[cfg(not(feature = "gdal"))]
                 CellValue::UInt64(v) => CellValue::new(-(v as f64)),
+                #[cfg(not(feature = "gdal"))]
                 CellValue::Int8(v) => CellValue::new(-v),
                 CellValue::Int16(v) => CellValue::new(-v),
                 CellValue::Int32(v) => CellValue::new(-v),
+                #[cfg(not(feature = "gdal"))]
                 CellValue::Int64(v) => CellValue::new(-v),
                 CellValue::Float32(v) => CellValue::new(-v),
                 CellValue::Float64(v) => CellValue::new(-v),
@@ -252,10 +255,13 @@ pub(crate) mod ops {
                 (CellValue::UInt8(l), CellValue::UInt8(r)) => Ord::cmp(&l, &r),
                 (CellValue::UInt16(l), CellValue::UInt16(r)) => Ord::cmp(&l, &r),
                 (CellValue::UInt32(l), CellValue::UInt32(r)) => Ord::cmp(&l, &r),
+                #[cfg(not(feature = "gdal"))]
                 (CellValue::UInt64(l), CellValue::UInt64(r)) => Ord::cmp(&l, &r),
+                #[cfg(not(feature = "gdal"))]
                 (CellValue::Int8(l), CellValue::Int8(r)) => Ord::cmp(&l, &r),
                 (CellValue::Int16(l), CellValue::Int16(r)) => Ord::cmp(&l, &r),
                 (CellValue::Int32(l), CellValue::Int32(r)) => Ord::cmp(&l, &r),
+                #[cfg(not(feature = "gdal"))]
                 (CellValue::Int64(l), CellValue::Int64(r)) => Ord::cmp(&l, &r),
                 (CellValue::Float32(l), CellValue::Float32(r)) => l.total_cmp(&r),
                 (CellValue::Float64(l), CellValue::Float64(r)) => l.total_cmp(&r),
@@ -316,7 +322,7 @@ mod tests {
             Ok(CellValue::Int16(43))
         ));
         assert!(CellValue::Float32(3.11111)
-            .convert(CellType::Int64)
+            .convert(CellType::Int32)
             .is_err());
         assert!(matches!(
             CellValue::Float32(3.11111).convert(CellType::Float32),
@@ -338,6 +344,7 @@ mod tests {
     fn unary() {
         assert!(matches!(-CellValue::UInt8(1), CellValue::Int16(-1)));
         assert!(matches!(-CellValue::UInt16(1), CellValue::Int32(-1)));
+        #[cfg(not(feature = "gdal"))]
         assert!(matches!(-CellValue::Int8(1), CellValue::Int8(-1)));
         assert!(matches!(-CellValue::Int16(1), CellValue::Int16(-1)));
         assert!(matches!(-CellValue::Float64(1.0), CellValue::Float64(-1.0)));

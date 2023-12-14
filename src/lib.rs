@@ -57,29 +57,8 @@ use std::fmt::{Debug, Formatter};
 pub use value::ops::*;
 pub use value::*;
 
-/// A [callback style](https://danielkeep.github.io/tlborm/book/pat-callbacks.html)
-/// macro used to construct various implementations covering all [`CellType`]s.
-///
-/// It calls the passed identifier as a macro with two parameters:
-/// * the cell type id (e.g. `UInt8`),
-/// * the cell type primitive (e.g. `u8`).
-///
-/// # Example
-/// ```rust
-/// use erased_cells::{with_ct, CellType};
-/// fn primitive_name(ct: CellType) -> &'static str {
-///     macro_rules! primitive_name {
-///        ($(($id:ident, $p:ident)),*) => {
-///             match ct {
-///                 $(CellType::$id => stringify!($p),)*
-///             }
-///        };
-///     }
-///     with_ct!(primitive_name)
-/// }
-///
-/// assert_eq!(primitive_name(CellType::Float32), "f32");
-/// ```
+#[cfg(not(feature = "gdal"))]
+#[doc=include_str!("with_ct.md")]
 #[macro_export]
 macro_rules! with_ct {
     ($callback:ident) => {
@@ -92,6 +71,22 @@ macro_rules! with_ct {
             (Int16, i16),
             (Int32, i32),
             (Int64, i64),
+            (Float32, f32),
+            (Float64, f64)
+        }
+    };
+}
+#[cfg(feature = "gdal")]
+#[doc=include_str!("with_ct.md")]
+#[macro_export]
+macro_rules! with_ct {
+    ($callback:ident) => {
+        $callback! {
+            (UInt8, u8),
+            (UInt16, u16),
+            (UInt32, u32),
+            (Int16, i16),
+            (Int32, i32),
             (Float32, f32),
             (Float64, f64)
         }
