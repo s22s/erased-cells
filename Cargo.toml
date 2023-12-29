@@ -47,6 +47,8 @@ erased-cells-testkit = { path = "testkit" }
 
 [package.metadata.docs.rs]
 all-features = true
+# define attribute `docsrs` for feature badges
+rustdoc-args = ["--cfg", "docsrs"]
 
 [workspace.metadata.release]
 enable-all-features = true
