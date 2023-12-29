@@ -1,6 +1,5 @@
 use std::fmt::{Debug, Formatter};
 
-pub use self::ops::*;
 use crate::masked::nodata::IsNodata;
 use crate::{BufferOps, CellBuffer, CellEncoding, CellType, CellValue, Mask, NoData};
 #[cfg(feature = "serde")]

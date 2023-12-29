@@ -11,9 +11,9 @@ pub type Result<T, E = Error> = std::result::Result<T, E>;
 /// Enumeration of error kinds
 #[derive(ThisError, Debug)]
 pub enum Error {
-    #[error("Invalid narrowing from cell type {src} to {dst}")]
+    #[error("Invalid narrowing from cell-type {src} to {dst}")]
     NarrowingError { src: CellType, dst: CellType },
-    #[error("Unsupported cell type {0}")]
+    #[error("Unsupported cell-type {0}")]
     UnsupportedCellTypeError(String),
     #[error("Expected a value but received `None`: {0}")]
     ExpectedError(String),

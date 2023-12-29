@@ -48,7 +48,7 @@ jobs:
       - name: Check documentation errors
         env:
           RUSTDOCFLAGS: -D warnings
-        run: cargo doc --no-deps --document-private-items --examples --features masked
+        run: cargo doc --no-deps --document-private-items --examples --all-features
 
   test:
     name: Test

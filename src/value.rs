@@ -97,8 +97,8 @@ impl CellValue {
         with_ct!(convert)
     }
 
-    /// Determines the smallest cell type that can contain `self` and `other`, and then
-    /// converts values to that cell type and returns a tuple of the converted values, i.e.
+    /// Determines the smallest cell-type that can contain `self` and `other`, and then
+    /// converts values to that cell-type and returns a tuple of the converted values, i.e.
     /// `(convert(self), convert(other))`.
     pub fn unify(&self, other: &Self) -> (Self, Self) {
         let dest = self.cell_type().union(other.cell_type());

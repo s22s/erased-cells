@@ -8,8 +8,6 @@ use serde::{Deserialize, Serialize};
 use crate::error::{Error, Result};
 use crate::{with_ct, BufferOps, CellEncoding, CellType, CellValue};
 
-pub use self::ops::*;
-
 /// CellBuffer enum constructor.
 macro_rules! cb_enum {
     ( $(($id:ident, $p:ident)),*) => {
@@ -387,13 +385,13 @@ mod ops {
     }
 
     /// Computes ordering for [`CellBuffer`]. Unlike `Vec<CellEncoding>`, floating point
-    /// cell types are compared with `{f32|f64}::total_cmp`.  
+    /// cell-types are compared with `{f32|f64}::total_cmp`.  
     impl Ord for CellBuffer {
         fn cmp(&self, other: &Self) -> Ordering {
             let lct = self.cell_type();
             let rct = other.cell_type();
 
-            // If the cell types are different, then base comparison on that.
+            // If the cell-types are different, then base comparison on that.
             match lct.cmp(&rct) {
                 Ordering::Equal => (),
                 ne => return ne,

@@ -5,3 +5,5 @@ TEST_DATA_DIR = { value = "testkit/data", relative = true }
 [alias]
 # Run clippy, raising warnings to errors
 nowarn = "clippy --all-targets -- -D warnings"
+docs = "doc --no-deps --all-features"
+tests = "test --all-features --no-fail-fast"

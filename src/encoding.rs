@@ -23,7 +23,7 @@ pub trait CellEncoding: Copy + Debug + Default + Zero + One + PartialEq {
     }
 }
 
-/// Implements [`CellEncoding`] for each cell type.
+/// Implements [`CellEncoding`] for each cell-type.
 macro_rules! encoding {
     ( $( ($ct:ident, $prim:ident) ),* ) => { $(
         impl CellEncoding for $prim {

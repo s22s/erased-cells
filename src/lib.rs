@@ -22,10 +22,9 @@
 //!
 //! # Examples
 //!
-//! Usage examples:
-//!
 //! * [`CellBuffer` example](crate::CellBuffer#example)
 //! * [`MaskedCellBuffer` example](crate::MaskedCellBuffer#example)
+//! * [GDAL example](crate::RasterBandEx::read_cells) (_requires `gdal` feature flag_)
 //!
 //! # Feature Flags
 //!
@@ -35,8 +34,10 @@
 //! |:--------:|------------------------------------------------|:-------:|
 //! | `masked` | Enable the `MaskedCellBuffer` API              | `true`  |
 //! | `serde`  | Derive `serde` traits for core types           | `true`  |
-//! | `gdal`   | Enable `CellBuffer`s in `georust/gdal` API     | `false` |
+//! | `gdal`   | Enable `CellBuffer`s in `georust/gdal` API[^1] | `false` |
 //!
+//! [^1]: Note: `gdal` disables cell-types `UInt64`, `Int8`, and `Int64`
+//! to be backwards compatible with older versions of GDAL.
 
 mod buffer;
 mod ctype;
@@ -51,10 +52,11 @@ mod value;
 pub use buffer::*;
 pub use ctype::*;
 pub use encoding::*;
+#[cfg(feature = "gdal")]
+pub use gdal::*;
 #[cfg(feature = "masked")]
 pub use masked::*;
 use std::fmt::{Debug, Formatter};
-pub use value::ops::*;
 pub use value::*;
 
 #[cfg(not(feature = "gdal"))]
@@ -122,7 +124,7 @@ pub trait BufferOps {
         self.len() == 0
     }
 
-    /// Get the cell type of the encoded value.
+    /// Get the cell-type of the encoded value.
     fn cell_type(&self) -> CellType;
 
     /// Get the [`CellValue`] at index `idx`.
