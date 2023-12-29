@@ -7,3 +7,4 @@ TEST_DATA_DIR = { value = "testkit/data", relative = true }
 nowarn = "clippy --all-targets -- -D warnings"
 docs = "doc --no-deps --all-features"
 tests = "test --all-features --no-fail-fast"
+coverage = "tarpaulin --all-features --out html --output-dir target"

@@ -52,3 +52,16 @@ impl<T: CellEncoding> TryFrom<GdalND> for NoData<T> {
         with_ct!(nd_convert)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::CellType;
+    use gdal::raster::GdalDataType;
+
+    #[test]
+    fn gdal_enum() {
+        for dt in GdalDataType::iter().filter(|g| !format!("{g:?}").contains("Int64")) {
+            let ct: CellType = dt.try_into().unwrap();
+        }
+    }
+}
