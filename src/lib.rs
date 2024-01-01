@@ -34,8 +34,10 @@
 //! |:--------:|------------------------------------------------|:-------:|
 //! | `masked` | Enable the `MaskedCellBuffer` API              | `true`  |
 //! | `serde`  | Derive `serde` traits for core types           | `true`  |
-//! | `gdal`   | Enable `CellBuffer`s in `georust/gdal` API     | `false` |
+//! | `gdal`   | Enable `CellBuffer`s in `georust/gdal` API[^1] | `false` |
 //!
+//! [^1]: Note: `gdal` disables cell-types `UInt64`, `Int8`, and `Int64`
+//! to be backwards compatible with older versions of GDAL.
 
 mod buffer;
 mod ctype;

@@ -3,38 +3,43 @@
 use crate::error::Result;
 use crate::{with_ct, CellEncoding, CellType, NoData};
 use gdal::raster::GdalDataType;
-use gdal_sys::GDALDataType;
 use num_traits::ToPrimitive;
 use paste::paste;
-use std::ffi::c_uint;
 
 mod rasterband;
 pub use rasterband::*;
+
+// Note: Older versions of GDAL do not support Int8, Int64 and UInt64, so we have
+// a reduced set of cell types in this module.
+macro_rules! with_gdal_ct {
+    ($callback:ident) => {
+        $callback! {
+            (UInt8, u8),
+            (UInt16, u16),
+            (UInt32, u32),
+            (Int16, i16),
+            (Int32, i32),
+            (Float32, f32),
+            (Float64, f64)
+        }
+    };
+}
+pub(crate) use with_gdal_ct;
 
 /// Convert from [`GdalDataType`] to appropriate [`CellType`].
 impl TryFrom<GdalDataType> for CellType {
     type Error = crate::error::Error;
 
     fn try_from(value: GdalDataType) -> Result<Self, Self::Error> {
-        match value as c_uint {
-            GDALDataType::GDT_Byte => Ok(CellType::UInt8),
-            GDALDataType::GDT_UInt16 => Ok(CellType::UInt16),
-            GDALDataType::GDT_Int16 => Ok(CellType::Int16),
-            GDALDataType::GDT_UInt32 => Ok(CellType::UInt32),
-            GDALDataType::GDT_Int32 => Ok(CellType::Int32),
-            GDALDataType::GDT_Float32 => Ok(CellType::Float32),
-            GDALDataType::GDT_Float64 => Ok(CellType::Float64),
-            // Because GDAL < 3.5 is still very common, we are hard-coding
-            // the ordinal values so as to simplify  the rest of the code.
-            //
-            // GDT_UInt64: 64 bit unsigned integer (GDAL >= 3.5)
-            12 => Ok(CellType::UInt64),
-            // GDT_Int64: 64 bit signed integer  (GDAL >= 3.5)
-            13 => Ok(CellType::Int64),
-            // GDT_Int8: 8-bit signed integer (GDAL >= 3.7)
-            14 => Ok(CellType::Int8),
-            o => Err(Self::Error::UnsupportedCellTypeError(o.to_string())),
+        macro_rules! try_from {
+            ($( ($id:ident, $_p:ident) ),*) => {
+                match value {
+                    $(GdalDataType::$id => Ok(CellType::$id),)*
+                    o => Err(Self::Error::UnsupportedCellTypeError(o.to_string())),
+                }
+            }
         }
+        with_gdal_ct!(try_from)
     }
 }
 

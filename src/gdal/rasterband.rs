@@ -1,6 +1,6 @@
+use super::with_gdal_ct;
 use crate::error::*;
-use crate::{gdal::GdalND, with_ct, CellBuffer, CellType, MaskedCellBuffer};
-
+use crate::{gdal::GdalND, BufferOps, CellBuffer, CellType, MaskedCellBuffer};
 use gdal::raster::{RasterBand, ResampleAlg};
 
 /// Extension methods on [`RasterBand`]  to read/write [`CellBuffer`]s.
@@ -95,10 +95,11 @@ impl RasterBandEx for RasterBand<'_> {
                         let v = self.read_as::<$p>(window, window_size, size, e_resample_alg)?;
                         Ok(CellBuffer::new(v.data))
                     }),*
+                    o => Err(Error::UnsupportedCellTypeError(o.to_string())),
                 }
             }
         }
-        with_ct!(read_cells)
+        with_gdal_ct!(read_cells)
     }
     fn read_cells_masked(
         &self,
@@ -116,10 +117,11 @@ impl RasterBandEx for RasterBand<'_> {
                     $(
                     CellBuffer::$id(v) => Ok(MaskedCellBuffer::from_vec_with_nodata::<$p>(v, nd.try_into()?)),
                     )*
+                    o => Err(Error::UnsupportedCellTypeError(o.cell_type().to_string())),
                 }
             }
         }
-        with_ct!(read_masked)
+        with_gdal_ct!(read_masked)
     }
 }
 
