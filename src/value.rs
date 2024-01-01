@@ -228,13 +228,10 @@ pub(crate) mod ops {
                 CellValue::UInt8(v) => CellValue::new(-(v as i16)),
                 CellValue::UInt16(v) => CellValue::new(-(v as i32)),
                 CellValue::UInt32(v) => CellValue::new(-(v as f64)),
-                #[cfg(not(feature = "gdal"))]
                 CellValue::UInt64(v) => CellValue::new(-(v as f64)),
-                #[cfg(not(feature = "gdal"))]
                 CellValue::Int8(v) => CellValue::new(-v),
                 CellValue::Int16(v) => CellValue::new(-v),
                 CellValue::Int32(v) => CellValue::new(-v),
-                #[cfg(not(feature = "gdal"))]
                 CellValue::Int64(v) => CellValue::new(-v),
                 CellValue::Float32(v) => CellValue::new(-v),
                 CellValue::Float64(v) => CellValue::new(-v),
@@ -255,13 +252,10 @@ pub(crate) mod ops {
                 (CellValue::UInt8(l), CellValue::UInt8(r)) => Ord::cmp(&l, &r),
                 (CellValue::UInt16(l), CellValue::UInt16(r)) => Ord::cmp(&l, &r),
                 (CellValue::UInt32(l), CellValue::UInt32(r)) => Ord::cmp(&l, &r),
-                #[cfg(not(feature = "gdal"))]
                 (CellValue::UInt64(l), CellValue::UInt64(r)) => Ord::cmp(&l, &r),
-                #[cfg(not(feature = "gdal"))]
                 (CellValue::Int8(l), CellValue::Int8(r)) => Ord::cmp(&l, &r),
                 (CellValue::Int16(l), CellValue::Int16(r)) => Ord::cmp(&l, &r),
                 (CellValue::Int32(l), CellValue::Int32(r)) => Ord::cmp(&l, &r),
-                #[cfg(not(feature = "gdal"))]
                 (CellValue::Int64(l), CellValue::Int64(r)) => Ord::cmp(&l, &r),
                 (CellValue::Float32(l), CellValue::Float32(r)) => l.total_cmp(&r),
                 (CellValue::Float64(l), CellValue::Float64(r)) => l.total_cmp(&r),

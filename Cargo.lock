@@ -38,6 +38,7 @@ version = "0.1.1"
 dependencies = [
  "erased-cells-testkit",
  "gdal",
+ "gdal-sys",
  "num-traits",
  "paste",
  "serde",

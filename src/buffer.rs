@@ -423,13 +423,10 @@ mod ops {
                 (CellBuffer::UInt8(lhs), CellBuffer::UInt8(rhs)) => Ord::cmp(&lhs, &rhs),
                 (CellBuffer::UInt16(lhs), CellBuffer::UInt16(rhs)) => Ord::cmp(&lhs, &rhs),
                 (CellBuffer::UInt32(lhs), CellBuffer::UInt32(rhs)) => Ord::cmp(&lhs, &rhs),
-                #[cfg(not(feature = "gdal"))]
                 (CellBuffer::UInt64(lhs), CellBuffer::UInt64(rhs)) => Ord::cmp(&lhs, &rhs),
-                #[cfg(not(feature = "gdal"))]
                 (CellBuffer::Int8(lhs), CellBuffer::Int8(rhs)) => Ord::cmp(&lhs, &rhs),
                 (CellBuffer::Int16(lhs), CellBuffer::Int16(rhs)) => Ord::cmp(&lhs, &rhs),
                 (CellBuffer::Int32(lhs), CellBuffer::Int32(rhs)) => Ord::cmp(&lhs, &rhs),
-                #[cfg(not(feature = "gdal"))]
                 (CellBuffer::Int64(lhs), CellBuffer::Int64(rhs)) => Ord::cmp(&lhs, &rhs),
                 (CellBuffer::Float32(l), CellBuffer::Float32(r)) => total_cmp!(l, r),
                 (CellBuffer::Float64(l), CellBuffer::Float64(r)) => total_cmp!(l, r),

@@ -59,7 +59,6 @@ pub use masked::*;
 use std::fmt::{Debug, Formatter};
 pub use value::*;
 
-#[cfg(not(feature = "gdal"))]
 #[doc=include_str!("with_ct.md")]
 #[macro_export]
 macro_rules! with_ct {
@@ -73,22 +72,6 @@ macro_rules! with_ct {
             (Int16, i16),
             (Int32, i32),
             (Int64, i64),
-            (Float32, f32),
-            (Float64, f64)
-        }
-    };
-}
-#[cfg(feature = "gdal")]
-#[doc=include_str!("with_ct.md")]
-#[macro_export]
-macro_rules! with_ct {
-    ($callback:ident) => {
-        $callback! {
-            (UInt8, u8),
-            (UInt16, u16),
-            (UInt32, u32),
-            (Int16, i16),
-            (Int32, i32),
             (Float32, f32),
             (Float64, f64)
         }
