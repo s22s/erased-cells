@@ -22,25 +22,29 @@
 //!
 //! # Examples
 //!
-//! Usage examples:
-//!
 //! * [`CellBuffer` example](crate::CellBuffer#example)
 //! * [`MaskedCellBuffer` example](crate::MaskedCellBuffer#example)
+//! * [GDAL example](crate::RasterBandEx::read_cells) (_requires `gdal` feature flag_)
 //!
 //! # Feature Flags
 //!
 //! The following feature flags are available.
 //!
-//! | Name     | Description                          | Default |
-//! |:--------:|--------------------------------------|:-------:|
-//! | `masked` | Enable the `MaskedCellBuffer` API    | `true`  |
-//! | `serde`  | Derive `serde` traits for core types | `true`  |
+//! | Name     | Description                                    | Default |
+//! |:--------:|------------------------------------------------|:-------:|
+//! | `masked` | Enable the `MaskedCellBuffer` API              | `true`  |
+//! | `serde`  | Derive `serde` traits for core types           | `true`  |
+//! | `gdal`   | Enable `CellBuffer`s in `georust/gdal` API[^1] | `false` |
 //!
+//! [^1]: Note: `gdal` disables cell-types `UInt64`, `Int8`, and `Int64`
+//! to be backwards compatible with older versions of GDAL.
 
 mod buffer;
 mod ctype;
 mod encoding;
 pub mod error;
+#[cfg(feature = "gdal")]
+mod gdal;
 #[cfg(feature = "masked")]
 mod masked;
 mod value;
@@ -48,13 +52,14 @@ mod value;
 pub use buffer::*;
 pub use ctype::*;
 pub use encoding::*;
+#[cfg(feature = "gdal")]
+pub use gdal::*;
 #[cfg(feature = "masked")]
 pub use masked::*;
 use std::fmt::{Debug, Formatter};
-pub use value::ops::*;
 pub use value::*;
 
-/// A [callback style](https://danielkeep.github.io/tlborm/book/pat-callbacks.html)
+/// `with_ct` is a [callback style](https://danielkeep.github.io/tlborm/book/pat-callbacks.html)
 /// macro used to construct various implementations covering all [`CellType`]s.
 ///
 /// It calls the passed identifier as a macro with two parameters:
@@ -124,7 +129,7 @@ pub trait BufferOps {
         self.len() == 0
     }
 
-    /// Get the cell type of the encoded value.
+    /// Get the cell-type of the encoded value.
     fn cell_type(&self) -> CellType;
 
     /// Get the [`CellValue`] at index `idx`.

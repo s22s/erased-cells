@@ -73,7 +73,7 @@ mod tests {
 
     #[test]
     fn has_value() {
-        assert_eq!(NoData::<i8>::None.value(), None);
+        assert_eq!(NoData::<i16>::None.value(), None);
         assert_eq!(NoData::<u8>::Default.value(), Some(<u8>::MIN));
         assert!(NoData::<f32>::Default.value().unwrap().is_nan());
         assert_eq!(NoData::new(6u16).value(), Some(6u16));

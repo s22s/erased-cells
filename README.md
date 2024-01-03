@@ -12,7 +12,7 @@
 
 Enables the use and manipulation of type-erased buffers of Rust primitives.
 
-Please refer to the [documentation](https://s22s.github.io/erased-cells/erased_cells/) for details.
+Please refer to the [documentation](https://docs.rs/erased-cells/) for details.
 
 ## Quick Example
 

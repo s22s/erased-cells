@@ -1,6 +1,5 @@
 use std::fmt::{Debug, Formatter};
 
-pub use self::ops::*;
 use crate::masked::nodata::IsNodata;
 use crate::{BufferOps, CellBuffer, CellEncoding, CellType, CellValue, Mask, NoData};
 #[cfg(feature = "serde")]
@@ -406,7 +405,7 @@ mod tests {
 
         let m = MaskedCellBuffer::from_vec(vec![0.0; 4]);
         assert_eq!(m.mask().counts(), (4, 0));
-        let m = MaskedCellBuffer::with_defaults(4, CellType::Int8);
+        let m = MaskedCellBuffer::with_defaults(4, CellType::Int16);
         assert_eq!(m.mask().counts(), (4, 0));
     }
 

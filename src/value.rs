@@ -97,8 +97,8 @@ impl CellValue {
         with_ct!(convert)
     }
 
-    /// Determines the smallest cell type that can contain `self` and `other`, and then
-    /// converts values to that cell type and returns a tuple of the converted values, i.e.
+    /// Determines the smallest cell-type that can contain `self` and `other`, and then
+    /// converts values to that cell-type and returns a tuple of the converted values, i.e.
     /// `(convert(self), convert(other))`.
     pub fn unify(&self, other: &Self) -> (Self, Self) {
         let dest = self.cell_type().union(other.cell_type());
@@ -227,7 +227,7 @@ pub(crate) mod ops {
             match self {
                 CellValue::UInt8(v) => CellValue::new(-(v as i16)),
                 CellValue::UInt16(v) => CellValue::new(-(v as i32)),
-                CellValue::UInt32(v) => CellValue::new(-(v as i64)),
+                CellValue::UInt32(v) => CellValue::new(-(v as f64)),
                 CellValue::UInt64(v) => CellValue::new(-(v as f64)),
                 CellValue::Int8(v) => CellValue::new(-v),
                 CellValue::Int16(v) => CellValue::new(-v),
@@ -316,7 +316,7 @@ mod tests {
             Ok(CellValue::Int16(43))
         ));
         assert!(CellValue::Float32(3.11111)
-            .convert(CellType::Int64)
+            .convert(CellType::Int32)
             .is_err());
         assert!(matches!(
             CellValue::Float32(3.11111).convert(CellType::Float32),
@@ -338,6 +338,7 @@ mod tests {
     fn unary() {
         assert!(matches!(-CellValue::UInt8(1), CellValue::Int16(-1)));
         assert!(matches!(-CellValue::UInt16(1), CellValue::Int32(-1)));
+        #[cfg(not(feature = "gdal"))]
         assert!(matches!(-CellValue::Int8(1), CellValue::Int8(-1)));
         assert!(matches!(-CellValue::Int16(1), CellValue::Int16(-1)));
         assert!(matches!(-CellValue::Float64(1.0), CellValue::Float64(-1.0)));

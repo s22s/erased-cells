@@ -1,5 +1,9 @@
 name: CI
-on: [pull_request, push]
+on:
+  pull_request: {}
+  push:
+    branches: [main, develop]
+
 jobs:
   check:
     name: Check
@@ -10,7 +14,7 @@ jobs:
       - name: Install Rust
         run: rustup update stable
       - name: Check compilation errors
-        run: cargo check --all-features
+        run: cargo check --features masked
 
   fmt:
     name: Rustfmt
@@ -32,7 +36,7 @@ jobs:
       - name: Install Clippy
         run: rustup update stable && rustup component add clippy
       - name: Check lint errors
-        run: cargo clippy --all-targets --all-features
+        run: cargo clippy --all-targets --features masked
   docs:
     name: Docs
     runs-on: ubuntu-latest
@@ -44,7 +48,8 @@ jobs:
       - name: Check documentation errors
         env:
           RUSTDOCFLAGS: -D warnings
-        run: cargo doc --no-deps --document-private-items --all-features --examples
+          DOCS_RS: true
+        run: cargo doc --no-deps --document-private-items --examples --all-features
 
   test:
     name: Test
@@ -53,6 +58,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
+      - name: Install GDAL
+        run: sudo apt-get install -y libgdal-dev
       - name: Install Rust toolchain
         run: rustup update stable
       - name: Install cargo-llvm-cov
@@ -65,7 +72,7 @@ jobs:
           use-tool-cache: true
       - name: Generate test result and coverage report
         run: |
-          cargo llvm-cov --all-features --workspace --lcov --output-path lcov.info;
+          cargo llvm-cov --workspace --lcov --output-path lcov.info --all-features;
           rust-covfix -o lcov-fixed.info lcov.info
       - name: Upload to Codecov
         uses: codecov/codecov-action@v3
